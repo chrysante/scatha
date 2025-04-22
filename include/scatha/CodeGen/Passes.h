@@ -18,13 +18,16 @@ struct LoweringOptions {
     bool generateSelectionDAGImages = false;
 };
 
+struct CodegenOptions;
+
 /// Lowers the IR module \p mod to MIR representation
 SCATHA_API mir::Module lowerToMIR(mir::Context& ctx, ir::Module const& mod,
                                   LoweringOptions options = {});
 
 /// Computes the live-in and live-out sets of function \p F
 /// \pre Requires \p F to be in SSA form
-SCATHA_API void computeLiveSets(mir::Context& ctx, mir::Function& F);
+SCATHA_API void computeLiveSets(mir::Context& ctx, mir::Function& F,
+                                CodegenOptions const& options);
 
 /// Eliminate dead instructions in function \p F
 /// Not as powerful as DCE of IR, as it won't catch dead cycles,
@@ -33,15 +36,18 @@ SCATHA_API void computeLiveSets(mir::Context& ctx, mir::Function& F);
 /// \Returns `true` if any changes have been made to \p F
 ///
 /// \pre Requires \p F to be in SSA form
-SCATHA_API bool deadCodeElim(mir::Context& ctx, mir::Function& F);
+SCATHA_API bool deadCodeElim(mir::Context& ctx, mir::Function& F,
+                             CodegenOptions const& options);
 
 /// "Kitchen sink" for all SSA peephole optimizations
-SCATHA_API bool instSimplify(mir::Context& ctx, mir::Function& F);
+SCATHA_API bool instSimplify(mir::Context& ctx, mir::Function& F,
+                             CodegenOptions const& options);
 
 /// Basic block local common instruction elimination
 /// \pre Requires the function \p F to be in SSA form
 SCATHA_API bool commonSubexpressionElimination(mir::Context& ctx,
-                                               mir::Function& F);
+                                               mir::Function& F,
+                                               CodegenOptions const& options);
 
 /// Convert function \p F out of SSA form
 ///
@@ -50,21 +56,25 @@ SCATHA_API bool commonSubexpressionElimination(mir::Context& ctx,
 /// instructions and if possible replaces tail calls by jump intructions
 ///
 /// \pre Requires \p F to be in SSA form
-SCATHA_API void destroySSA(mir::Context& ctx, mir::Function& F);
+SCATHA_API void destroySSA(mir::Context& ctx, mir::Function& F,
+                           CodegenOptions const& options);
 
 /// Basic block local copy elimination pass. Requires virtual register form and
 /// live ranges to be computed
-SCATHA_API void coalesceCopies(mir::Context& ctx, mir::Function& F);
+SCATHA_API void coalesceCopies(mir::Context& ctx, mir::Function& F,
+                               CodegenOptions const& options);
 
 /// Convert registers of function \p F to hardware registers. Redundant copy
 /// instructions will be elided.
 ///
 /// \pre Requires \p F to be in virtual register form
-SCATHA_API void allocateRegisters(mir::Context& ctx, mir::Function& F);
+SCATHA_API void allocateRegisters(mir::Context& ctx, mir::Function& F,
+                                  CodegenOptions const& options);
 
 /// Reorder the basic blocks of function \p F to elide terminating jump
 /// instructions
-SCATHA_API void elideJumps(mir::Context& ctx, mir::Function& F);
+SCATHA_API void elideJumps(mir::Context& ctx, mir::Function& F,
+                           CodegenOptions const& options);
 
 /// Lower MIR module \p mod to assembly
 SCATHA_API Asm::AssemblyStream lowerToASM(mir::Module const& mod);

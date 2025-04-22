@@ -50,7 +50,9 @@ struct LivenessContext {
 
 } // namespace
 
-void cg::computeLiveSets(Context&, Function& F) { LivenessContext(F).run(); }
+void cg::computeLiveSets(Context&, Function& F, CodegenOptions const&) {
+    LivenessContext(F).run();
+}
 
 void LivenessContext::run() {
     for (auto& BB: F) {

@@ -11,6 +11,7 @@ set(scatha_headers
 
   include/scatha/CodeGen/CodeGen.h
   include/scatha/CodeGen/Logger.h
+  include/scatha/CodeGen/Options.h
   include/scatha/CodeGen/Passes.h
   include/scatha/CodeGen/SelectionDAG.h
   include/scatha/CodeGen/SelectionNode.h

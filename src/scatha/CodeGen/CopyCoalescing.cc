@@ -43,7 +43,9 @@ struct CCContext {
 
 } // namespace
 
-void cg::coalesceCopies(Context& ctx, Function& F) { CCContext(ctx, F).run(); }
+void cg::coalesceCopies(Context& ctx, Function& F, CodegenOptions const&) {
+    CCContext(ctx, F).run();
+}
 
 void CCContext::run() {
     for (auto* inst: F.linearInstructions()) {

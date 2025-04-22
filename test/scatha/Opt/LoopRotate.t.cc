@@ -14,7 +14,7 @@
 using namespace scatha;
 
 static uint64_t run(ir::Module const& mod) {
-    auto obj = Asm::assemble(cg::codegen(mod));
+    auto obj = Asm::assemble(cg::codegen(mod, { .optLevel = GENERATE(0, 1) }));
     auto linkresult = Asm::link({}, obj.program, {}, obj.unresolvedSymbols);
     REQUIRE(linkresult);
     svm::VirtualMachine VM;

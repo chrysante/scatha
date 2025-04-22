@@ -67,7 +67,7 @@ struct ISContext {
 
 } // namespace
 
-bool cg::instSimplify(Context& ctx, Function& F) {
+bool cg::instSimplify(Context& ctx, Function& F, CodegenOptions const&) {
     return ISContext(ctx, F).run();
 }
 

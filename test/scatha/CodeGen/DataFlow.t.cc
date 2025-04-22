@@ -3,6 +3,7 @@
 #include <range/v3/algorithm.hpp>
 #include <string>
 
+#include "CodeGen/Options.h"
 #include "CodeGen/Passes.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -38,7 +39,7 @@ func i64 @f(i64 %0) {
     mir::Context ctx;
     auto mod = cg::lowerToMIR(ctx, irMod);
     auto& F = mod.front();
-    cg::computeLiveSets(ctx, F);
+    cg::computeLiveSets(ctx, F, {});
     auto* entry = F.entry();
     auto* argReg = F.ssaArgumentRegisters().front();
     auto* nReg = entry->front().dest();

@@ -13,42 +13,49 @@
 using namespace scatha;
 using namespace cg;
 
-Asm::AssemblyStream cg::codegen(ir::Module const& irMod) {
-    return codegen(irMod, *std::make_unique<NullLogger>());
+Asm::AssemblyStream cg::codegen(ir::Module const& irMod,
+                                CodegenOptions options) {
+    return codegen(irMod, options, *std::make_unique<NullLogger>());
 }
 
-static void forEach(mir::Context& ctx, mir::Module& mod, auto transform) {
-    ranges::for_each(mod, [&](auto& F) { transform(ctx, F); });
+static void forEach(mir::Context& ctx, mir::Module& mod,
+                    CodegenOptions const& options, auto transform) {
+    ranges::for_each(mod, [&](auto& F) { transform(ctx, F, options); });
 }
 
-Asm::AssemblyStream cg::codegen(ir::Module const& irMod, cg::Logger& logger) {
+Asm::AssemblyStream cg::codegen(ir::Module const& irMod, CodegenOptions options,
+                                cg::Logger& logger) {
     mir::Context ctx;
     auto mod = cg::lowerToMIR(ctx, irMod);
     logger.log("Initial MIR module", mod);
 
-    forEach(ctx, mod, cg::instSimplify);
-    logger.log("MIR module after simplification", mod);
-
-    forEach(ctx, mod, cg::commonSubexpressionElimination);
-    logger.log("MIR module after CSE", mod);
-
-    forEach(ctx, mod, cg::deadCodeElim);
-    logger.log("MIR module after DCE", mod);
+    if (options.optLevel > 0) {
+        forEach(ctx, mod, options, cg::instSimplify);
+        logger.log("MIR module after simplification", mod);
+        forEach(ctx, mod, options, cg::commonSubexpressionElimination);
+        logger.log("MIR module after CSE", mod);
+        forEach(ctx, mod, options, cg::deadCodeElim);
+        logger.log("MIR module after DCE", mod);
+    }
 
     /// We compute live sets just before we leave SSA form
-    forEach(ctx, mod, cg::computeLiveSets);
+    forEach(ctx, mod, options, cg::computeLiveSets);
     logger.log("MIR module after life set computation", mod);
 
-    forEach(ctx, mod, cg::destroySSA);
+    forEach(ctx, mod, options, cg::destroySSA);
     logger.log("MIR module after SSA destruction", mod);
 
-    forEach(ctx, mod, cg::coalesceCopies);
-    logger.log("MIR module after copy coalescing", mod);
+    if (options.optLevel > 0) {
+        forEach(ctx, mod, options, cg::coalesceCopies);
+        logger.log("MIR module after copy coalescing", mod);
+    }
 
-    forEach(ctx, mod, cg::allocateRegisters);
+    forEach(ctx, mod, options, cg::allocateRegisters);
     logger.log("MIR module after register allocation", mod);
 
-    forEach(ctx, mod, cg::elideJumps);
-    logger.log("MIR module after jump elision", mod);
+    if (options.optLevel > 0) {
+        forEach(ctx, mod, options, cg::elideJumps);
+        logger.log("MIR module after jump elision", mod);
+    }
     return cg::lowerToASM(mod);
 }

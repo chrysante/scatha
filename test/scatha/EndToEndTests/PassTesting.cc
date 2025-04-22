@@ -85,14 +85,14 @@ static Generator makeIRGenerator(std::string_view text) {
 }
 
 static auto codegenAndAssemble(
-    ir::Module const& mod, std::ostream* str = nullptr,
+    ir::Module const& mod, int optLevel, std::ostream* str = nullptr,
     std::span<ForeignLibraryDecl const> foreignLibs = {}) {
     auto assembly = [&] {
         if (!str) {
-            return cg::codegen(mod);
+            return cg::codegen(mod, { .optLevel = optLevel });
         }
         cg::DebugLogger logger(*str);
-        return cg::codegen(mod, logger);
+        return cg::codegen(mod, { .optLevel = optLevel }, logger);
     }();
     auto [prog, sym, unresolved, dsym] = Asm::assemble(assembly);
     if (!Asm::link(Asm::LinkerOptions{}, prog, foreignLibs, unresolved)) {
@@ -101,9 +101,9 @@ static auto codegenAndAssemble(
     return std::pair{ std::move(prog), std::move(sym) };
 }
 
-static uint64_t run(ir::Module const& mod, std::ostream* str,
+static uint64_t run(ir::Module const& mod, int optLevel, std::ostream* str,
                     std::span<ForeignLibraryDecl const> foreignLibs) {
-    auto [prog, sym] = codegenAndAssemble(mod, str, foreignLibs);
+    auto [prog, sym] = codegenAndAssemble(mod, optLevel, str, foreignLibs);
     return runProgram(prog, findMain(sym).value());
 }
 
@@ -133,16 +133,16 @@ struct Impl {
     void runTest(Generator const& generator, utl::function_view<void()> begin,
                  utl::function_view<void(u64)> end) const {
         /// No optimization
-        {
+        for (int optLevel: { 0, 1 }) {
             auto [ctx, mod, libs] = generator();
-            runChecked("Unoptimized", mod, libs, begin, end);
+            runChecked("Unoptimized", mod, libs, optLevel, begin, end);
         }
 
         /// Default optimizations
-        {
+        for (int optLevel: { 0, 1 }) {
             auto [ctx, mod, libs] = generator();
             opt::optimize(ctx, mod, {});
-            runChecked("Default pipeline", mod, libs, begin, end);
+            runChecked("Default pipeline", mod, libs, optLevel, begin, end);
         }
 
         if (getOptions().TestPasses) {
@@ -191,21 +191,21 @@ struct Impl {
 
     void runChecked(std::string_view msg, ir::Module const& mod,
                     std::span<ForeignLibraryDecl const> foreignLibs,
-                    utl::function_view<void()> begin,
+                    int optLevel, utl::function_view<void()> begin,
                     utl::function_view<void(u64)> end) const {
         INFO(msg);
         begin();
         size_t result = 0;
         std::string code;
         if (!getOptions().PrintCodegen) {
-            result = run(mod, nullptr, foreignLibs);
+            result = run(mod, optLevel, nullptr, foreignLibs);
         }
         else {
             std::stringstream sstr;
             /// Catch2 breaks strings after 75 characters
             tfmt::setWidth(sstr, 75);
             ir::print(mod, sstr);
-            result = run(mod, &sstr, foreignLibs);
+            result = run(mod, optLevel, &sstr, foreignLibs);
             code = std::move(sstr).str();
         }
         INFO(code);
@@ -217,13 +217,15 @@ struct Impl {
                       ir::Pipeline const& pipeline,
                       utl::function_view<void()> begin,
                       utl::function_view<void(u64)> end) const {
-        auto [ctx, mod, libs] = generator();
-        prePipeline(ctx, mod);
-        auto message = utl::strcat("Pass test for \"", pipeline,
-                                   "\" with pre pipeline \"", prePipeline,
-                                   "\"");
-        pipeline(ctx, mod);
-        runChecked(message, mod, libs, begin, end);
+        for (int optLevel: { 0, 1 }) {
+            auto [ctx, mod, libs] = generator();
+            prePipeline(ctx, mod);
+            auto message = utl::strcat("Pass test for \"", pipeline,
+                                       "\" with pre pipeline \"", prePipeline,
+                                       "\" and codegen opt-level ", optLevel);
+            pipeline(ctx, mod);
+            runChecked(message, mod, libs, optLevel, begin, end);
+        }
     }
 
     void testIdempotency(Generator const& generator,
@@ -245,11 +247,11 @@ struct Impl {
                                        "\" with pre pipeline \"", prePipeline,
                                        "\"");
             ir::forEach(ctx, mod, pass, {});
-            runChecked(message, mod, libs, begin, end);
+            runChecked(message, mod, libs, 1, begin, end);
             bool second = ir::forEach(ctx, mod, pass, {});
             INFO(message);
             CHECK(!second);
-            runChecked(message, mod, libs, begin, end);
+            runChecked(message, mod, libs, 1, begin, end);
         }
     }
 };
@@ -308,7 +310,7 @@ bool test::IRCompiles(std::string_view text) {
 
 void test::compile(std::string text) {
     auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
-    codegenAndAssemble(mod);
+    codegenAndAssemble(mod, /* optLevel: */ 1);
 }
 
 uint64_t test::runProgram(std::span<uint8_t const> program, size_t startpos) {
@@ -337,12 +339,12 @@ std::optional<size_t> test::findMain(
 
 uint64_t test::compileAndRun(std::string text) {
     auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
-    return ::run(mod, nullptr, libs);
+    return ::run(mod, 1, nullptr, libs);
 }
 
 uint64_t test::compileAndRunIR(std::string text) {
     auto [ctx, mod, libs] = makeIRGenerator({ std::move(text) })();
-    return ::run(mod, nullptr, libs);
+    return ::run(mod, 1, nullptr, libs);
 }
 
 void test::checkReturns(uint64_t expected, std::string source) {

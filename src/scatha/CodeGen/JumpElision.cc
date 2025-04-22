@@ -41,7 +41,9 @@ struct JumpElimContext {
 
 } // namespace
 
-void cg::elideJumps(mir::Context&, Function& F) { JumpElimContext(F).run(); }
+void cg::elideJumps(mir::Context&, Function& F, CodegenOptions const&) {
+    JumpElimContext(F).run();
+}
 
 void JumpElimContext::run() {
     DFS(&L.front());

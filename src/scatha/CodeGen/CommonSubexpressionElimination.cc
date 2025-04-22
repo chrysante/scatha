@@ -168,7 +168,8 @@ struct CSEContext {
 
 } // namespace
 
-bool cg::commonSubexpressionElimination(mir::Context& ctx, mir::Function& F) {
+bool cg::commonSubexpressionElimination(mir::Context& ctx, mir::Function& F,
+                                        CodegenOptions const&) {
     bool modified = false;
     for (auto& BB: F) {
         modified |= CSEContext(ctx, F, BB).run();

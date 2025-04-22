@@ -174,7 +174,7 @@ static void allocateCalleeRegisters(Function& F) {
     }
 }
 
-void cg::allocateRegisters(Context&, Function& F) {
+void cg::allocateRegisters(Context&, Function& F, CodegenOptions const&) {
     convertToTwoAddressMode(F);
     /// Now we color the interference graph and replace registers
     /// This is were the actual work happens, everything is this file is mostly

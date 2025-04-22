@@ -3,6 +3,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 
+#include "CodeGen/Options.h"
 #include "CodeGen/TargetInfo.h"
 #include "CodeGen/Utility.h"
 #include "MIR/CFG.h"
@@ -13,27 +14,6 @@ using namespace scatha;
 using namespace cg;
 using namespace mir;
 using namespace ranges::views;
-
-static bool isTailCall(CallInst const& call) {
-    // Make sure this is not a call to a foreign function because we can't jump
-    // to those. As of right now we don't suppport TCO for indirect calls
-    // either. This shouldn't be hard to fix, we only need to implement indirect
-    // jump instructions.
-    if (auto* cv = dyncast<CallValueInst const*>(&call);
-        !cv || !isa<Function>(cv->callee()))
-        return false;
-    auto* ret = dyncast<ReturnInst const*>(call.next());
-    if (!ret) return false;
-    // If we return nothing we can we can instead return the callees return
-    // value
-    if (ret->operands().empty() || isa<UndefValue>(ret->operands().front()))
-        return true;
-    // We return the callees return value, the canonical TCO case
-    if (ret->operands().size() == call.numDests() &&
-        ret->operands().front() == call.dest())
-        return true;
-    return false;
-}
 
 static void mapSSAToVirtualRegisters(Function& F) {
     utl::hashmap<SSARegister*, VirtualRegister*> registerMap;
@@ -71,9 +51,33 @@ static void mapSSAToVirtualRegisters(Function& F) {
     }
 }
 
-static BasicBlock::Iterator destroyTailCall(Function& F, BasicBlock& BB,
-                                            CallInst& call,
-                                            BasicBlock::Iterator itr) {
+namespace {
+
+struct DestrSSAContext {
+    Function& F;
+    CodegenOptions const& options;
+
+    // Base case
+    BasicBlock::Iterator destroy(BasicBlock&, Instruction&,
+                                 BasicBlock::Iterator itr) {
+        return std::next(itr);
+    }
+    BasicBlock::Iterator destroyTailCall(BasicBlock& BB, CallInst& call,
+                                         BasicBlock::Iterator itr);
+    BasicBlock::Iterator destroy(BasicBlock& BB, CallInst& call,
+                                 BasicBlock::Iterator const callItr);
+    BasicBlock::Iterator destroy(BasicBlock& BB, ReturnInst& ret,
+                                 BasicBlock::Iterator itr);
+    BasicBlock::Iterator destroy(BasicBlock& BB, PhiInst& phi,
+                                 BasicBlock::Iterator itr);
+    BasicBlock::Iterator destroy(BasicBlock& BB, SelectInst& select,
+                                 BasicBlock::Iterator itr);
+};
+
+} // namespace
+
+BasicBlock::Iterator DestrSSAContext::destroyTailCall(
+    BasicBlock& BB, CallInst& call, BasicBlock::Iterator itr) {
     size_t const numArgs = call.operands().size() - 1;
     /// We allocate bottom registers for the arguments
     for (size_t i = F.virtualRegisters().size(); i < numArgs; ++i) {
@@ -131,10 +135,31 @@ static BasicBlock::Iterator destroyTailCall(Function& F, BasicBlock& BB,
     return itr;
 }
 
-static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
-                                    BasicBlock::Iterator const callItr) {
-    if (isTailCall(call)) {
-        return destroyTailCall(F, BB, call, callItr);
+static bool isTailCall(CallInst const& call) {
+    // Make sure this is not a call to a foreign function because we can't jump
+    // to those. As of right now we don't suppport TCO for indirect calls
+    // either. This shouldn't be hard to fix, we only need to implement indirect
+    // jump instructions.
+    if (auto* cv = dyncast<CallValueInst const*>(&call);
+        !cv || !isa<Function>(cv->callee()))
+        return false;
+    auto* ret = dyncast<ReturnInst const*>(call.next());
+    if (!ret) return false;
+    // If we return nothing we can we can instead return the callees return
+    // value
+    if (ret->operands().empty() || isa<UndefValue>(ret->operands().front()))
+        return true;
+    // We return the callees return value, the canonical TCO case
+    if (ret->operands().size() == call.numDests() &&
+        ret->operands().front() == call.dest())
+        return true;
+    return false;
+}
+
+BasicBlock::Iterator DestrSSAContext::destroy(
+    BasicBlock& BB, CallInst& call, BasicBlock::Iterator const callItr) {
+    if (options.optLevel > 0 && isTailCall(call)) {
+        return destroyTailCall(BB, call, callItr);
     }
     size_t numMDRegs = call.isNative() ? numRegistersForCallMetadata() : 0;
     size_t numCalleeRegs =
@@ -176,8 +201,8 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, CallInst& call,
     return std::next(callItr);
 }
 
-static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB,
-                                    ReturnInst& ret, BasicBlock::Iterator itr) {
+BasicBlock::Iterator DestrSSAContext::destroy(BasicBlock& BB, ReturnInst& ret,
+                                              BasicBlock::Iterator itr) {
     for (auto [arg, dest]: zip(ret.operands(), F.virtualReturnValueRegisters()))
     {
         auto* copy = new CopyInst(dest, arg, 8, ret.cloneMetadata());
@@ -211,8 +236,8 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB,
     splitBlock->setLiveOut(pred->liveOut());
 }
 
-static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, PhiInst& phi,
-                                    BasicBlock::Iterator itr) {
+BasicBlock::Iterator DestrSSAContext::destroy(BasicBlock& BB, PhiInst& phi,
+                                              BasicBlock::Iterator itr) {
     auto* dest = phi.dest();
     bool const needTmp = ranges::any_of(BB.predecessors(), [&](auto* pred) {
         return isCriticalEdge(pred, &BB);
@@ -263,9 +288,9 @@ static BasicBlock::Iterator destroy(Function& F, BasicBlock& BB, PhiInst& phi,
     return BB.erase(itr);
 }
 
-static BasicBlock::Iterator destroy(Function&, BasicBlock& BB,
-                                    SelectInst& select,
-                                    BasicBlock::Iterator itr) {
+BasicBlock::Iterator DestrSSAContext::destroy(BasicBlock& BB,
+                                              SelectInst& select,
+                                              BasicBlock::Iterator itr) {
     auto* copy = new CopyInst(select.dest(), select.thenValue(),
                               select.bytewidth(), select.cloneMetadata());
     auto* cndCopy =
@@ -274,12 +299,6 @@ static BasicBlock::Iterator destroy(Function&, BasicBlock& BB,
     BB.insert(itr, copy);
     BB.insert(itr, cndCopy);
     return BB.erase(itr);
-}
-
-/// Base case
-static BasicBlock::Iterator destroy(Function&, BasicBlock&, Instruction&,
-                                    BasicBlock::Iterator itr) {
-    return std::next(itr);
 }
 
 /// We mark every call instruction as a definition of every callee register,
@@ -293,12 +312,13 @@ static void clobberCalleeRegisters(Function& F) {
     }
 }
 
-void cg::destroySSA(mir::Context&, Function& F) {
+void cg::destroySSA(mir::Context&, Function& F, CodegenOptions const& options) {
     mapSSAToVirtualRegisters(F);
+    DestrSSAContext ctx{ F, options };
     for (auto& BB: F) {
         for (auto itr = BB.begin(); itr != BB.end();) {
             itr = visit(*itr,
-                        [&](auto& inst) { return destroy(F, BB, inst, itr); });
+                        [&](auto& inst) { return ctx.destroy(BB, inst, itr); });
         }
     }
     clobberCalleeRegisters(F);

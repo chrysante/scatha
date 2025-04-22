@@ -214,7 +214,8 @@ std::optional<Target> CompilerInvocation::run() {
     case TargetType::BinaryOnly: {
         cg::NullLogger nullLogger;
         auto* logger = codegenLogger ? codegenLogger : &nullLogger;
-        auto asmStream = cg::codegen(irModule, *logger);
+        auto asmStream =
+            cg::codegen(irModule, { .optLevel = optLevel }, *logger);
         tryInvoke(callbacks.codegenCallback, asmStream);
         if (!continueCompilation) return std::nullopt;
         auto asmRes =
