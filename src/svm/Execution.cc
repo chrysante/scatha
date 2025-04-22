@@ -340,22 +340,22 @@ static constexpr std::array<void*, 256> makeJumpTable(void* invalid,
 template <ExecutionMode Mode>
 void VMImpl::execute() {
 #if JUMP_THREADING
+    u8 const* iptr = currentFrame.iptr;
+    u64* regPtr = currentFrame.regPtr;
+    try {
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wgnu"
 #endif
 
-    u8 const* iptr = currentFrame.iptr;
-    u64* regPtr = currentFrame.regPtr;
-    // Cache the interrupt flags address into a local variable
-    auto& interruptFlag = this->interruptFlag;
-    if constexpr (Mode == ExecutionMode::Interruptible)
-        interruptFlag.store(false);
+        // Cache the interrupt flags address into a local variable
+        auto& interruptFlag = this->interruptFlag;
+        if constexpr (Mode == ExecutionMode::Interruptible)
+            interruptFlag.store(false);
+
 #define ON_INTERRUPT()                                                         \
     do {                                                                       \
-        currentFrame.iptr = iptr;                                              \
-        currentFrame.regPtr = regPtr;                                          \
         throwException<InterruptException>();                                  \
     } while (0)
 
@@ -366,21 +366,22 @@ void VMImpl::execute() {
         return;                                                                \
     } while (0)
 
-    static constexpr std::array jumpTable = makeJumpTable(&&opcode_block_invalid
+        static constexpr std::array jumpTable =
+            makeJumpTable(&&opcode_block_invalid
 #define SVM_INSTRUCTION_DEF(name, ...) , &&opcode_block_##name
 #include "scbinutil/OpCode.def.h"
-    );
+            );
 
-    // Here the execution starts. We jump to the first opcode block.
-    goto* jumpTable[*iptr];
+        // Here the execution starts. We jump to the first opcode block.
+        goto* jumpTable[*iptr];
 
-    // Defines the beginning of an opcode block. #including "ExecutionInstDef.h"
-    // will fill in the code for each block.
+        // Defines the beginning of an opcode block. #including
+        // "ExecutionInstDef.h" will fill in the code for each block.
 #define INST_BEGIN(InstName)                                                   \
     opcode_block_##InstName:                                                   \
         if ([[maybe_unused]] auto* const opPtr = iptr + sizeof(OpCode); true)
 
-    // After executing one opcode, we directly jump to the next block
+        // After executing one opcode, we directly jump to the next block
 #define INST_END(InstName)                                                     \
     iptr += ExecCodeSize<OpCode::InstName>;                                    \
     if constexpr (Mode == ExecutionMode::Interruptible)                        \
@@ -390,12 +391,17 @@ void VMImpl::execute() {
 #include "ExecutionInstDef.h"
 
 opcode_block_invalid:
-    throwException<InvalidOpcodeError>((u64)*iptr);
+        throwException<InvalidOpcodeError>((u64)*iptr);
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
-
+    }
+    catch (...) {
+        currentFrame.iptr = iptr;
+        currentFrame.regPtr = regPtr;
+        throw;
+    }
 #else  // JUMP_THREADING
     return executeNoJumpThread(start, arguments);
 #endif // JUMP_THREADING
