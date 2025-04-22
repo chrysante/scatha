@@ -3,7 +3,9 @@
 
 #include <filesystem>
 #include <optional>
+#include <set>
 #include <span>
+#include <string>
 #include <vector>
 
 #include <scdis/Disassembly.h>
@@ -53,6 +55,11 @@ namespace sdb {
 
 class SourceDebugInfo;
 
+struct FunctionDebugInfo {
+    std::string name;
+    scdis::InstructionPointerOffset begin, end;
+};
+
 /// Maps source locations to instruction pointer offsets and vice versa
 class SourceLocationMap {
 public:
@@ -96,9 +103,14 @@ public:
     ///
     SourceLocationMap const& sourceMap() const { return _sourceMap; }
 
+    ///
+    FunctionDebugInfo const* findFunction(
+        scdis::InstructionPointerOffset ipo) const;
+
 private:
     std::vector<SourceFile> _files;
     SourceLocationMap _sourceMap;
+    std::vector<FunctionDebugInfo> _functionInfoMap;
 };
 
 } // namespace sdb

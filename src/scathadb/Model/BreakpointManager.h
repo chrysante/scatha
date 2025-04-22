@@ -17,17 +17,11 @@ namespace sdb {
 /// Low-level breakpoint installation manager.
 class BreakpointPatcher {
 public:
-    /// Queue a breakpoint for installation at \p ipo
-    void addBreakpoint(scdis::InstructionPointerOffset ipo);
-
-    /// Queue a breakpoint for uninstallation at \p ipo
-    void removeBreakpoint(scdis::InstructionPointerOffset ipo);
-
     /// Queue the breakpoint at \p ipo for temporary removal.
     /// Can be called at positions without a breakpoint. Every call must be
     /// matched by a call to `popBreakpoint()` with the same IPO value,
     /// regardless of whether a breakpoint is installed.
-    void pushBreakpoint(scdis::InstructionPointerOffset ipo);
+    void pushBreakpoint(scdis::InstructionPointerOffset ipo, bool value);
 
     /// Queue the temporarily removed breakpoint at \p ipo for restoration. Must
     /// not be called without a prior call to `pushBreakpoint()`.
@@ -44,8 +38,13 @@ public:
     void setProgramData(std::span<uint8_t const> progData);
 
 private:
-    utl::hashset<scdis::InstructionPointerOffset> insertQueue, removalQueue,
-        activeBreakpoints;
+    /// Queue a breakpoint for installation at \p ipo
+    void addBreakpoint(scdis::InstructionPointerOffset ipo);
+
+    /// Queue a breakpoint for uninstallation at \p ipo
+    void removeBreakpoint(scdis::InstructionPointerOffset ipo);
+
+    utl::hashset<scdis::InstructionPointerOffset> insertQueue, removalQueue;
     utl::hashmap<scdis::InstructionPointerOffset, utl::stack<bool>> stackMap;
     std::vector<uint8_t> binary;
 };
@@ -55,7 +54,7 @@ class BreakpointManager: Transceiver {
 public:
     explicit BreakpointManager(std::shared_ptr<Messenger> messenger,
                                scdis::IpoIndexMap const& ipoIndexMap,
-                               SourceLocationMap const& sourceLocMap);
+                               SourceDebugInfo const& sourceDebugInfo);
 
     /// Install or remove an instruction breakpoint at \p instIndex
     void toggleInstBreakpoint(size_t instIndex);
@@ -80,10 +79,11 @@ private:
     void install();
 
     scdis::IpoIndexMap const& ipoIndexMap;
-    SourceLocationMap const& sourceLocMap;
+    SourceDebugInfo const& sourceDebugInfo;
     utl::hashset<size_t> instBreakpointSet;
     utl::hashset<SourceLine> sourceLineBreakpointSet;
     BreakpointPatcher patcher;
+    std::vector<scdis::InstructionPointerOffset> steppingBreakpoints;
 };
 
 } // namespace sdb

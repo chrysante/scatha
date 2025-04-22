@@ -56,5 +56,27 @@ SourceDebugInfo SourceDebugInfo::Make(scatha::DebugInfoMap const& map) {
         ranges::sort(ipos);
     for (auto& [line, ipos]: sourceMap.srcLineToIpos)
         ranges::sort(ipos);
+    for (auto& [functionName, ipoRange]: map.functionIpoMap)
+        result._functionInfoMap.push_back(
+            { functionName, scdis::InstructionPointerOffset(ipoRange.begin),
+              scdis::InstructionPointerOffset(ipoRange.end) });
+    ranges::sort(result._functionInfoMap, ranges::less{},
+                 &FunctionDebugInfo::begin);
     return result;
+}
+
+FunctionDebugInfo const* SourceDebugInfo::findFunction(
+    scdis::InstructionPointerOffset ipo) const {
+    auto first = _functionInfoMap.begin();
+    auto last = _functionInfoMap.end();
+    while (first < last) {
+        auto mid = first + (last - first) / 2;
+        if (ipo < mid->begin)
+            last = mid;
+        else if (ipo >= mid->end)
+            first = mid;
+        else
+            return std::to_address(mid);
+    }
+    return nullptr;
 }

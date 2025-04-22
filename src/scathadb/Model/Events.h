@@ -42,6 +42,18 @@ struct DidStepInstruction {
     scdis::InstructionPointerOffset ipo;
 };
 
+/// Sent on the executor thread before stepping a source line
+struct WillStepSourceLine {
+    svm::VirtualMachine& vm;
+    scdis::InstructionPointerOffset ipo;
+};
+
+///
+struct DidStepSourceLine {
+    svm::VirtualMachine& vm;
+    scdis::InstructionPointerOffset ipo;
+};
+
 /// Sent if UI must be reconstructed. For now this is only sent when a patient
 /// program is loaded.
 struct ReloadUIRequest {};

@@ -53,7 +53,7 @@ public:
     void stepInstruction() { executor.stepInstruction(); }
 
     /// Step over the next source line when paused
-    void stepSourceLine();
+    void stepSourceLine() { executor.stepSourceLine(); }
 
     ///
     bool isIdle() const { return executor.isIdle(); }

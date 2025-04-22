@@ -26,7 +26,7 @@ static decltype(auto) locked(auto& mutex, auto&& fn) {
 Model::Model(std::shared_ptr<Messenger> messenger):
     _messenger(std::move(messenger)),
     executor(_messenger),
-    breakpointManager(_messenger, disasm.indexMap(), sourceDbg.sourceMap()),
+    breakpointManager(_messenger, disasm.indexMap(), sourceDbg),
     _stdout([this] { _messenger->send_now(PatientConsoleOutputEvent{}); }) {
     executor.writeVM().get().setIOStreams(nullptr, &_stdout);
 }
@@ -81,8 +81,6 @@ void Model::startExecution() {
     _stdout.str({});
     executor.startExecution();
 }
-
-void Model::stepSourceLine() {}
 
 void Model::toggleInstBreakpoint(size_t instIndex) {
     breakpointManager.toggleInstBreakpoint(instIndex);

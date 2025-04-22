@@ -208,6 +208,12 @@ public:
     bool hasValue() const {
         return !std::holds_alternative<std::monostate>(*this);
     }
+
+    /// \Returns true if this exception is of type `T`
+    template <typename T>
+    bool is() const {
+        return std::holds_alternative<T>(*this);
+    }
 };
 
 /// Exception class

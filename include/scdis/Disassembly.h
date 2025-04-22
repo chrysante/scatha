@@ -110,6 +110,9 @@ public:
     /// index
     InstructionPointerOffset indexToIpo(size_t index) const;
 
+    /// \Returns true if \p index is valid for this map
+    bool isIndexValid(size_t index) const { return index < _indexToIpo.size(); }
+
 private:
     friend struct internal::Disassembler;
 

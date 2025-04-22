@@ -57,6 +57,9 @@ public:
     /// Steps one instruction of the currently running paused program
     void stepInstruction();
 
+    /// Steps one instruction of the currently running paused program
+    void stepSourceLine();
+
     /// \Returns `true` if a program is currently running
     bool isRunning() const;
 

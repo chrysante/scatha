@@ -69,6 +69,9 @@ enum class Command {
     StepInst,
 
     ///
+    StepSourceLine,
+
+    ///
     Shutdown
 };
 
@@ -129,6 +132,8 @@ struct Executor::Impl: Transceiver {
 
     State stepInstruction(svm::VirtualMachine& vm, bool sendUIEncounter = true);
 
+    State stepSourceLine(svm::VirtualMachine& vm);
+
     State handleRuntimeException(svm::VirtualMachine& vm,
                                  svm::RuntimeException const& e);
     bool runInterruptCallback(svm::VirtualMachine& vm);
@@ -150,6 +155,7 @@ struct Executor::Impl: Transceiver {
     std::vector<std::string> runArguments;
     std::function<void(svm::VirtualMachine&)> interruptCallback;
     std::mutex interruptCallbackMutex;
+    bool isSteppingSourceLine = false, isContinue = false;
 };
 
 #define X(Name) [](Impl& impl) { return impl.do##Name(); },
@@ -184,6 +190,8 @@ void Executor::toggleExecution() {
 }
 
 void Executor::stepInstruction() { impl->pushCommand(Command::StepInst); }
+
+void Executor::stepSourceLine() { impl->pushCommand(Command::StepSourceLine); }
 
 bool Executor::isRunning() const {
     return impl->state.load() == State::RunningIndef;
@@ -244,6 +252,7 @@ State Impl::doIdle() {
     switch (waitCommand()) {
     case Command::StartExecution:
         try {
+            isSteppingSourceLine = false;
             auto vm = initVMForExecution();
             auto arg = svm::setupArguments(vm.get(), runArguments);
             send_now(WillBeginExecution{ vm.get() });
@@ -267,6 +276,7 @@ State Impl::doIdle() {
         return State::Stopped;
 
     case Command::StepInst:
+    case Command::StepSourceLine:
         return State::Idle;
     }
 }
@@ -284,7 +294,11 @@ static void endExecution(svm::VirtualMachine& vm) {
 State Impl::handleRuntimeException(svm::VirtualMachine& vm,
                                    svm::RuntimeException const& e) {
     InstructionPointerOffset ipo(vm.instructionPointerOffset());
-    if (std::holds_alternative<svm::InterruptException>(e.get())) {
+    if (isSteppingSourceLine) {
+        isSteppingSourceLine = false;
+        send_now(DidStepSourceLine{ vm, ipo });
+    }
+    if (e.get().is<svm::InterruptException>()) {
         if (runInterruptCallback(vm)) return State::RunningIndef;
         if (!vm.running()) return State::Idle;
         send_buffered(BreakEvent{ ipo, BreakState::Paused });
@@ -310,7 +324,10 @@ State Impl::doRunningIndef() {
     auto vm = getVM();
     if (!command) {
         try {
-            stepInstruction(vm.get(), /* sendUIEncounter: */ false);
+            if (isContinue) {
+                stepInstruction(vm.get(), /* sendUIEncounter: */ false);
+                isContinue = false;
+            }
             vm.get().executeInterruptible();
         }
         catch (svm::RuntimeException const& e) {
@@ -337,6 +354,7 @@ State Impl::doRunningIndef() {
         return State::Stopped;
 
     case Command::StepInst:
+    case Command::StepSourceLine:
         return State::RunningIndef;
     }
 }
@@ -367,6 +385,14 @@ State Impl::stepInstruction(svm::VirtualMachine& vm, bool sendUIEncounter) {
     }
 }
 
+State Impl::stepSourceLine(svm::VirtualMachine& vm) {
+    InstructionPointerOffset const ipo(vm.instructionPointerOffset());
+    send_now(WillStepSourceLine{ vm, ipo });
+    isSteppingSourceLine = true;
+    isContinue = true;
+    return State::RunningIndef;
+}
+
 State Impl::doPaused() {
     switch (waitCommand()) {
     case Command::StartExecution:
@@ -377,10 +403,14 @@ State Impl::doPaused() {
         return State::Idle;
 
     case Command::ToggleExecution:
+        isContinue = true;
         return State::RunningIndef;
 
     case Command::StepInst:
         return stepInstruction(getVM().get());
+
+    case Command::StepSourceLine:
+        return stepSourceLine(getVM().get());
 
     case Command::Shutdown:
         return State::Stopped;
