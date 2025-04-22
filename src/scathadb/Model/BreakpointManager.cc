@@ -41,8 +41,7 @@ void BreakpointPatcher::removeAll() {
 
 void BreakpointPatcher::patchInstructionStream(uint8_t* bin) {
     auto store = [=](scdis::InstructionPointerOffset ipo, uint8_t value) {
-        auto ref = std::atomic_ref<uint8_t>(bin[ipo.value]);
-        ref.store(value);
+        bin[ipo.value] = value;
     };
     for (auto ipo: insertQueue)
         store(ipo, (uint8_t)scbinutil::OpCode::trap);
