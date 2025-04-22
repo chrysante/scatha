@@ -26,16 +26,24 @@ private:
     void doPrettyPrint(std::ostream& os) const final;
 };
 
-/// Source location to be associated with an instruction
-class SourceLocationMD: public Metadata, public SourceLocation {
+/// Debug metadata to be associated with an instruction
+class InstructionDebugMetadata: public Metadata {
 public:
-    SourceLocationMD(SourceLocation sl): SourceLocation(sl) {}
+    InstructionDebugMetadata(std::string functionName, SourceLocation sl):
+        _fnName(functionName), _sl(sl) {}
+
+    std::string const& functionName() const { return _fnName; }
+
+    SourceLocation const& sourceLocation() const { return _sl; }
 
 private:
-    SourceLocationMD(SourceLocationMD const&) = default;
+    InstructionDebugMetadata(InstructionDebugMetadata const&) = default;
 
     std::unique_ptr<Metadata> doClone() const final;
     void doPrettyPrint(std::ostream& os) const final;
+
+    std::string _fnName;
+    SourceLocation _sl;
 };
 
 } // namespace scatha

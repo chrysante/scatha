@@ -138,22 +138,24 @@ void CGContext::genFunction(mir::Function const& F) {
     BlockOptions options = { .isExternallyVisible = F.visibility() ==
                                                     mir::Visibility::External,
                              .isFunction = true };
-    currentBlock =
-        result.add(Asm::Block(getLabelID(F), std::string(F.name()), options));
+    currentBlock = result.add(
+        std::make_unique<Asm::Block>(getLabelID(F), std::string(F.name()),
+                                     options));
     currentFunction = &F;
-    for (auto& BB: F) {
+    for (auto& BB: F)
         genBlock(BB);
-    }
 }
 
 void CGContext::genBlock(mir::BasicBlock const& BB) {
     if (!BB.isEntry()) {
-        currentBlock =
-            result.add(Asm::Block(getLabelID(BB), std::string(BB.name())));
+        BlockOptions options = { .functionHeader =
+                                     currentBlock->functionHeader() };
+        currentBlock = result.add(
+            std::make_unique<Asm::Block>(getLabelID(BB), std::string(BB.name()),
+                                         options));
     }
-    for (auto& inst: BB) {
+    for (auto& inst: BB)
         genInst(inst);
-    }
 }
 
 template <typename V>

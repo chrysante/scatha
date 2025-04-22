@@ -14,8 +14,11 @@ void SourceFileList::doPrettyPrint(std::ostream& os) const {
     }
 }
 
-std::unique_ptr<Metadata> SourceLocationMD::doClone() const {
-    return std::unique_ptr<SourceLocationMD>(new SourceLocationMD(*this));
+std::unique_ptr<Metadata> InstructionDebugMetadata::doClone() const {
+    return std::unique_ptr<InstructionDebugMetadata>(
+        new InstructionDebugMetadata(*this));
 }
 
-void SourceLocationMD::doPrettyPrint(std::ostream& os) const { os << *this; }
+void InstructionDebugMetadata::doPrettyPrint(std::ostream& os) const {
+    os << sourceLocation();
+}

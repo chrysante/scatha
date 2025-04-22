@@ -113,7 +113,9 @@ struct FuncGenContext: FuncGenContextBase {
     std::unique_ptr<Metadata> getMetadata() override {
         if (!lctx.config.generateDebugSymbols || sourceLocStack.empty())
             return nullptr;
-        return std::make_unique<SourceLocationMD>(sourceLocStack.top());
+        return std::make_unique<InstructionDebugMetadata>(std::string(
+                                                              irFn.name()),
+                                                          sourceLocStack.top());
     }
     void pushSourceLoc(SourceLocation sl) { sourceLocStack.push(sl); }
     void popSourceLoc() { sourceLocStack.pop(); }

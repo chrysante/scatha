@@ -51,6 +51,8 @@ struct Assembler: AsmWriter {
 
     void run();
 
+    void generateBlock(Block const& block);
+
     void dispatch(Instruction const& inst);
     void translate(MoveInst const&);
     void translate(CMoveInst const&);
@@ -166,30 +168,41 @@ void Assembler::run() {
         debugInfo.labelMap.insert(
             { offset,
               DebugLabel{ .type = DebugLabel::StringData, .name = name } });
-    /// We write the static data in the front of the binary
+    // We write the static data in the front of the binary
     binary = stream.dataSection() | ranges::to<std::vector>;
     setPosition(binary.size());
-    for (auto& block: stream) {
-        if (block.isExternallyVisible()) {
-            sym.insert({ block.name(), currentPosition() });
-            if (block.name().starts_with("main"))
-                startAddress = currentPosition();
-        }
-        labels.insert({ block.id(), currentPosition() });
+    // Then generate all the blocks
+    for (auto& block: stream)
+        generateBlock(block);
+    // Internal linking
+    setJumpDests();
+}
+
+void Assembler::generateBlock(Block const& block) {
+    if (block.isExternallyVisible()) {
+        sym.insert({ block.name(), currentPosition() });
+        if (block.name().starts_with("main")) startAddress = currentPosition();
+    }
+    labels.insert({ block.id(), currentPosition() });
+    IpoRange* functionRange = nullptr;
+    if (options.generateDebugInfo) {
         auto labelType = block.isFunction() ? DebugLabel::Function :
                                               DebugLabel::BasicBlock;
         debugInfo.labelMap[currentPosition()] = { .type = labelType,
                                                   .name = block.name() };
-        for (auto& inst: block)
-            dispatch(inst);
+        if (auto* header = block.functionHeader()) {
+            functionRange = &debugInfo.functionIpoMap[header->name()];
+            if (block.isFunction()) functionRange->begin = currentPosition();
+        }
     }
-    /// Internal linking
-    setJumpDests();
+    for (auto& inst: block)
+        dispatch(inst);
+    if (functionRange) functionRange->end = currentPosition();
 }
 
 void Assembler::dispatch(Instruction const& inst) {
-    if (auto* md = inst.metadataAs<SourceLocationMD>())
-        debugInfo.sourceLocationMap[pos] = *md;
+    if (auto* md = inst.metadataAs<InstructionDebugMetadata>())
+        debugInfo.sourceLocationMap[pos] = md->sourceLocation();
     std::visit([this](auto& inst) { translate(inst); }, inst);
 }
 

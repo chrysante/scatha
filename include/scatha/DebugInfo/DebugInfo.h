@@ -18,6 +18,14 @@ struct DebugLabel {
     std::string name;
 };
 
+struct IpoRange {
+    /// The offset of the first instruction in this range.
+    size_t begin;
+
+    /// The past-the-end offset of this range.
+    size_t end;
+};
+
 /// Structure containing all debug metadata emitted by the compiler
 struct DebugInfoMap {
     /// List of absolute source file paths. This array can be indexed by the
@@ -29,6 +37,9 @@ struct DebugInfoMap {
 
     /// Maps binary offsets to source locations.
     utl::hashmap<size_t, SourceLocation> sourceLocationMap;
+
+    /// Maps (mangled) function names to ranges of instruction pointer offsets
+    utl::hashmap<std::string, IpoRange> functionIpoMap;
 
     /// \Returns true if all members are empty
     bool empty() const {

@@ -31,33 +31,41 @@ static void from_json(nlohmann::json const& j, DebugLabel& label) {
     label.name = j.at("name").get<std::string>();
 }
 
+static void to_json(nlohmann::json& j, IpoRange const& ipoRange) {
+    j = { { "begin", ipoRange.begin }, { "end", ipoRange.end } };
+}
+
+static void from_json(nlohmann::json const& j, IpoRange& ipoRange) {
+    ipoRange.begin = j.at("begin").get<size_t>();
+    ipoRange.end = j.at("end").get<size_t>();
+}
+
 } // namespace scatha
 
 nlohmann::json DebugInfoMap::serialize() const {
     nlohmann::json j;
     j["files"] = sourceFiles;
-
-    auto& labels = j["labels"];
-    for (auto& [pos, label]: labelMap)
+    for (auto& labels = j["labels"]; auto& [pos, label]: labelMap)
         labels.push_back({ { "pos", pos }, { "label", label } });
-
-    auto& sourcemap = j["sourcemap"];
-    for (auto& [pos, SL]: sourceLocationMap)
+    for (auto& sourcemap = j["sourcemap"]; auto& [pos, SL]: sourceLocationMap)
         sourcemap.push_back({ { "pos", pos }, { "loc", SL } });
-
+    for (auto& fnIpoMap = j["functionipomap"];
+         auto& [name, ipoRange]: functionIpoMap)
+        fnIpoMap.push_back({ { "function", name }, { "range", ipoRange } });
     return j;
 }
 
 DebugInfoMap DebugInfoMap::deserialize(nlohmann::json const& j) {
     DebugInfoMap map;
     map.sourceFiles = j.at("files");
-    auto& labels = j.at("labels");
-    for (auto& elem: labels)
+    for (auto& labels = j.at("labels"); auto& elem: labels)
         map.labelMap.insert({ elem.at("pos").get<size_t>(),
                               elem.at("label").get<DebugLabel>() });
-    auto& sourcemap = j.at("sourcemap");
-    for (auto& elem: sourcemap)
+    for (auto& sourcemap = j.at("sourcemap"); auto& elem: sourcemap)
         map.sourceLocationMap.insert({ elem.at("pos").get<size_t>(),
                                        elem.at("loc").get<SourceLocation>() });
+    for (auto& fnIpoMap = j.at("functionipomap"); auto& elem: fnIpoMap)
+        map.functionIpoMap.insert({ elem.at("function").get<std::string>(),
+                                    elem.at("range").get<IpoRange>() });
     return map;
 }

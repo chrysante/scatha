@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include <range/v3/range.hpp>
+#include <utl/ilist.hpp>
 #include <utl/vector.hpp>
 
 #include "Assembly/Instruction.h"
@@ -12,12 +13,15 @@
 
 namespace scatha::Asm {
 
+class Block;
+
 struct BlockOptions {
     bool isExternallyVisible = false;
     bool isFunction = false;
+    Block const* functionHeader = nullptr;
 };
 
-class Block {
+class Block: public utl::ilist_node<Block> {
 public:
     using Iterator = utl::vector<Instruction>::iterator;
     using ConstIterator = utl::vector<Instruction>::const_iterator;
@@ -35,6 +39,7 @@ public:
         _extern(options.isExternallyVisible),
         _isFunction(options.isFunction),
         _name(std::move(name)),
+        _functionHeader(options.isFunction ? this : options.functionHeader),
         instructions(instructions) {}
 
     LabelID id() const { return _id; }
@@ -47,6 +52,10 @@ public:
     bool isFunction() const { return _isFunction; }
 
     std::string const& name() const { return _name; }
+
+    /// \Returns the header block of the function that this block belongs to. In
+    /// case of header block this will be `this`.
+    Block const* functionHeader() const { return _functionHeader; }
 
     size_t instructionCount() const { return instructions.size(); }
     bool empty() const { return instructions.empty(); }
@@ -76,6 +85,7 @@ private:
     bool _extern     : 1 = false;
     bool _isFunction : 1 = false;
     std::string _name;
+    Block const* _functionHeader;
     utl::vector<Instruction> instructions;
 };
 

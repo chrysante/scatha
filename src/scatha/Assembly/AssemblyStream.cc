@@ -1,12 +1,16 @@
 #include "Assembly/AssemblyStream.h"
 
+#include <vector>
+
+#include <utl/hashtable.hpp>
+
 #include "Assembly/Block.h"
 
 using namespace scatha;
 using namespace Asm;
 
 struct AssemblyStream::Impl {
-    std::list<Block> blocks;
+    utl::ilist<Block> blocks;
     std::vector<u8> data;
     utl::hashmap<size_t, std::string> dataLabels;
     std::vector<Jumpsite> jumpsites;
@@ -21,20 +25,20 @@ AssemblyStream& AssemblyStream::operator=(AssemblyStream&&) noexcept = default;
 
 AssemblyStream::~AssemblyStream() = default;
 
-std::list<Block>::iterator AssemblyStream::begin() {
+utl::ilist<Block>::iterator AssemblyStream::begin() {
     return impl->blocks.begin();
 }
-std::list<Block>::const_iterator AssemblyStream::begin() const {
+utl::ilist<Block>::const_iterator AssemblyStream::begin() const {
     return impl->blocks.begin();
 }
 
-std::list<Block>::iterator AssemblyStream::end() { return impl->blocks.end(); }
-std::list<Block>::const_iterator AssemblyStream::end() const {
+utl::ilist<Block>::iterator AssemblyStream::end() { return impl->blocks.end(); }
+utl::ilist<Block>::const_iterator AssemblyStream::end() const {
     return impl->blocks.end();
 }
 
-Block* AssemblyStream::add(Block block) {
-    impl->blocks.push_back(std::move(block));
+Block* AssemblyStream::add(std::unique_ptr<Block> block) {
+    impl->blocks.push_back(block.release());
     return &impl->blocks.back();
 }
 
