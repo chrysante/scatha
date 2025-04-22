@@ -296,7 +296,9 @@ State Impl::handleRuntimeException(svm::VirtualMachine& vm,
     InstructionPointerOffset ipo(vm.instructionPointerOffset());
     if (isSteppingSourceLine) {
         isSteppingSourceLine = false;
-        send_now(DidStepSourceLine{ vm, ipo });
+        bool isReturn = false;
+        send_now(DidStepSourceLine{ vm, ipo, &isReturn });
+        if (isReturn) return stepInstruction(vm);
     }
     if (e.get().is<svm::InterruptException>()) {
         if (runInterruptCallback(vm)) return State::RunningIndef;

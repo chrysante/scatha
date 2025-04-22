@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <vector>
 
+#include <scbinutil/OpCode.h>
 #include <scdis/Disassembly.h>
 #include <utl/hashtable.hpp>
 #include <utl/stack.hpp>
@@ -36,6 +37,11 @@ public:
     /// Set the binary data of the current program. This is necessary to always
     /// have a ground truth for the instruction stream of the program.
     void setProgramData(std::span<uint8_t const> progData);
+
+    ///
+    scbinutil::OpCode opcodeAt(scdis::InstructionPointerOffset ipo) const {
+        return (scbinutil::OpCode)binary[ipo.value];
+    }
 
 private:
     /// Queue a breakpoint for installation at \p ipo

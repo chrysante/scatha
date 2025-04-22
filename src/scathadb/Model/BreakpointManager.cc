@@ -109,10 +109,12 @@ BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
         {
             auto ipo = ipoIndexMap.indexToIpo(index);
             if (ipo >= function->end) break;
+            bool isReturn = patcher.opcodeAt(ipo) == scbinutil::OpCode::ret;
             auto sourceLoc = sourceDebugInfo.sourceMap().toSourceLoc(ipo);
-            if (!sourceLoc || sourceLoc->line == line) continue;
-            steppingBreakpoints.push_back(ipo);
-            patcher.pushBreakpoint(ipo, true);
+            if (isReturn || (sourceLoc && sourceLoc->line != line)) {
+                steppingBreakpoints.push_back(ipo);
+                patcher.pushBreakpoint(ipo, true);
+            }
         }
         patcher.patchInstructionStream(event.vm.getBinaryPointer());
     });
@@ -121,6 +123,7 @@ BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
             patcher.popBreakpoint(ipo);
         steppingBreakpoints.clear();
         patcher.patchInstructionStream(event.vm.getBinaryPointer());
+        *event.isReturn = patcher.opcodeAt(event.ipo) == scbinutil::OpCode::ret;
     });
 }
 

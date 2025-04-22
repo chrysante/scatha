@@ -52,6 +52,7 @@ struct WillStepSourceLine {
 struct DidStepSourceLine {
     svm::VirtualMachine& vm;
     scdis::InstructionPointerOffset ipo;
+    bool* isReturn = nullptr;
 };
 
 /// Sent if UI must be reconstructed. For now this is only sent when a patient
