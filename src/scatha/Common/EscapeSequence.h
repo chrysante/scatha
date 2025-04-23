@@ -21,7 +21,7 @@ std::optional<char> fromEscapeSequence(char seq);
 /// as it would be written in source code
 std::string toEscapeLiteral(std::string_view text);
 
-/// Inverser of `toEscapeLiteral()`
+/// Inverse of `toEscapeLiteral()`
 std::string toEscapedValue(std::string_view text);
 
 /// Print string \p text to \p ostream with escape sequences replaced by `\` +

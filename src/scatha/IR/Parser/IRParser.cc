@@ -416,23 +416,18 @@ std::vector<ParseIssue> ir::parseTo(std::string_view text, Context& ctx,
 void IRParser::parse() {
     while (peekToken().kind() != TokenKind::EndOfFile) {
         try {
-            DeclToken declToken;
             if (auto type = parseStructure()) {
-                if (options.typeParseCallback) {
+                DeclToken declToken;
+                if (options.typeParseCallback)
                     options.typeParseCallback(*type, declToken);
-                }
-                if (!declToken.shallIgnore()) {
-                    mod.addStructure(std::move(type));
-                }
+                if (!declToken.shallIgnore()) mod.addStructure(std::move(type));
                 continue;
             }
             if (auto global = parseGlobal()) {
-                if (options.objectParseCallback) {
+                DeclToken declToken;
+                if (options.objectParseCallback)
                     options.objectParseCallback(*global, declToken);
-                }
-                if (!declToken.shallIgnore()) {
-                    mod.addGlobal(std::move(global));
-                }
+                if (!declToken.shallIgnore()) mod.addGlobal(std::move(global));
                 continue;
             }
             reportSyntaxIssue(peekToken());

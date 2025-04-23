@@ -145,3 +145,21 @@ func void @f(ptr valret(@ret.type) %0,
         CHECK(attrib->type()->name() == "arg.type");
     }
 }
+
+TEST_CASE("Parse strings with escaped characters", "[ir][parser]") {
+    auto const text = R"(
+@some-string = constant [i8, 4] "\"\n\\\0"
+)";
+    auto [ctx, mod] = ir::parse(text).value();
+    REQUIRE(!mod.globals().empty());
+    auto* var = dyncast<ir::GlobalVariable const*>(&mod.globals().front());
+    REQUIRE(var);
+    auto* init = dyncast<ir::ArrayConstant const*>(var->initializer());
+    REQUIRE(init);
+    CHECK(init->type() == ctx.arrayType(ctx.intType(8), 4));
+    CHECK(init->numElements() == 4);
+    CHECK(init->elementAt(0) == ctx.intConstant('\"', 8));
+    CHECK(init->elementAt(1) == ctx.intConstant('\n', 8));
+    CHECK(init->elementAt(2) == ctx.intConstant('\\', 8));
+    CHECK(init->elementAt(3) == ctx.intConstant('\0', 8));
+}

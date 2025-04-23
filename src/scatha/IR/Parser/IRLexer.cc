@@ -9,6 +9,7 @@
 #include <utl/utility.hpp>
 
 #include "Common/Base.h"
+#include "Common/EscapeSequence.h"
 #include "IR/Parser/IRToken.h"
 
 using namespace scatha;
@@ -186,14 +187,18 @@ Expected<Token, LexicalIssue> Lexer::next() {
     // String literal
     if (*i == '\"') {
         SourceLocation const beginSL = loc;
-        inc();
-        auto* begin = i;
+        inc(); // Skip opening quote
+        auto* tokBegin = i;
         while (i != end && *i != '\"') {
+            if (*i == '\\') {
+                inc(); // Skip backslash
+                if (i == end) return LexicalIssue(loc);
+            }
             inc();
         }
-        auto* end = i;
-        inc();
-        return Token(begin, end, beginSL, TokenKind::StringLiteral);
+        auto tokEnd = i;
+        inc(); // Skip closing quote
+        return Token(tokBegin, tokEnd, beginSL, TokenKind::StringLiteral);
     }
     // Punctuation
     if (auto kind = getPunctuation(*i)) {
