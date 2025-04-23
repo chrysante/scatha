@@ -7,7 +7,7 @@ namespace scatha::Asm {
 struct LinkerOptions {
     /// Instructs the linker to search the host executable for missing foreign
     /// functions
-    bool searchHost;
+    bool searchHost = false;
 };
 
 } // namespace scatha::Asm
