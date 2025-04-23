@@ -78,7 +78,7 @@ struct MockSourceFile {
 
 static Comm makeComm() {
     auto callback = [](sdb::Messenger& messenger) { messenger.flush(); };
-    auto messenger = std::make_shared<sdb::Messenger>(callback);
+    auto messenger = sdb::Messenger::Make(callback);
     auto notifier = std::make_unique<Notifier<CommState>>();
     messenger->listen([notifier = notifier.get()](sdb::ProcessTerminated) {
         notifier->notify(&CommState::terminated, true);

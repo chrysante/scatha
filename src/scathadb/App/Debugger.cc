@@ -168,7 +168,7 @@ auto const StepOutOfCallCmd = Command::Add({
 
 Debugger::Debugger():
     _screen(ScreenInteractive::Fullscreen()),
-    _messenger(std::make_shared<Messenger>([this](Messenger& messenger) {
+    _messenger(Messenger::Make([this](Messenger& messenger) {
         _screen.Post([&messenger] { messenger.flush(); });
     })),
     _model(_messenger) {
