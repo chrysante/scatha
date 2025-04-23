@@ -16,27 +16,30 @@ public:
     using utl::buffered_messenger::send_now;
     using utl::buffered_messenger::unlisten;
 
-    using Task = std::function<void()>;
+    Messenger() = default;
 
-    explicit Messenger(std::function<void(Task)> submitTaskCb):
-        submitTaskCb(std::move(submitTaskCb)) {}
+    /// \p sendBufferedCallback will be invoked once by a call to
+    /// `send_buffered()` until the next call to `flush()`. Callback may be
+    /// called from any thread.
+    explicit Messenger(std::function<void(Messenger&)> sendBufferedCallback):
+        sendBufferedCallback(std::move(sendBufferedCallback)) {}
 
     void send_buffered(std::any const& message) {
         utl::buffered_messenger::send_buffered(message);
-        notifyMainTread();
+        notify();
     }
 
     void send_buffered(std::any&& message) {
         utl::buffered_messenger::send_buffered(std::move(message));
-        notifyMainTread();
+        notify();
     }
 
     void flush();
 
 private:
-    void notifyMainTread();
-    std::atomic_bool didNotifyMain = false;
-    std::function<void(std::function<void()>)> submitTaskCb;
+    void notify();
+    std::atomic_bool didNotify = false;
+    std::function<void(Messenger&)> sendBufferedCallback;
 };
 
 static_assert(utl::buffered_messenger_type<Messenger>);

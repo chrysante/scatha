@@ -40,10 +40,12 @@ static sdb::SourceLocation convertSourceLoc(scatha::SourceLocation sl) {
              (uint32_t)sl.column };
 }
 
-SourceDebugInfo SourceDebugInfo::Make(scatha::DebugInfoMap const& map) {
+SourceDebugInfo SourceDebugInfo::Make(
+    scatha::DebugInfoMap const& map,
+    utl::function_view<SourceFile(std::filesystem::path)> sourceFileLoader) {
     SourceDebugInfo result;
-    for (auto& file: map.sourceFiles)
-        result._files.push_back(SourceFile::Load(file));
+    for (auto& path: map.sourceFiles)
+        result._files.push_back(sourceFileLoader(path));
     auto& sourceMap = result._sourceMap;
     for (auto& [offset, sl]: map.sourceLocationMap) {
         scdis::InstructionPointerOffset ipo(offset);

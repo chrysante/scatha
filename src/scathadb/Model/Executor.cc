@@ -143,6 +143,10 @@ struct Executor::Impl: Transceiver {
                                  svm::RuntimeException const& e);
     bool runInterruptCallback(svm::VirtualMachine& vm);
 
+    void killExecution(svm::VirtualMachine& vm);
+
+    void endExecution(svm::VirtualMachine& vm);
+
     // State functions
 
 #define X(Name) State do##Name();
@@ -177,10 +181,7 @@ Executor::Executor(Executor&&) noexcept = default;
 
 Executor& Executor::operator=(Executor&&) noexcept = default;
 
-Executor::~Executor() {
-    impl->pushCommand(Command::Shutdown);
-    impl->thread.join();
-}
+Executor::~Executor() { shutdown(); }
 
 void Executor::startExecution() { impl->pushCommand(Command::StartExecution); }
 
@@ -202,6 +203,13 @@ void Executor::stepInstruction() { impl->pushCommand(Command::StepInst); }
 void Executor::stepSourceLine() { impl->pushCommand(Command::StepSourceLine); }
 
 void Executor::stepOut() { impl->pushCommand(Command::StepOut); }
+
+void Executor::shutdown() {
+    if (impl->thread.joinable()) {
+        impl->pushCommand(Command::Shutdown);
+        impl->thread.join();
+    }
+}
 
 bool Executor::isRunning() const {
     return impl->state.load() == State::RunningIndef;
@@ -292,14 +300,16 @@ State Impl::doIdle() {
     }
 }
 
-static void interruptExecution(svm::VirtualMachine& vm) {
-    vm.ostream() << "Program interrupted\n";
+void Impl::killExecution(svm::VirtualMachine& vm) {
+    vm.ostream() << "Process killed\n";
+    send_now(ProcessKilled{});
 }
 
-static void endExecution(svm::VirtualMachine& vm) {
+void Impl::endExecution(svm::VirtualMachine& vm) {
     vm.endExecution();
-    vm.ostream() << "Program returned with exit code: " << vm.getRegister(0)
+    vm.ostream() << "Process returned with exit code: " << vm.getRegister(0)
                  << "\n";
+    send_now(ProcessTerminated{});
 }
 
 State Impl::handleRuntimeException(svm::VirtualMachine& vm,
@@ -372,7 +382,7 @@ State Impl::doRunningIndef() {
         return State::RunningIndef;
 
     case Command::StopExecution:
-        interruptExecution(vm.get());
+        killExecution(vm.get());
         return State::Idle;
 
     case Command::ToggleExecution: {
@@ -381,7 +391,7 @@ State Impl::doRunningIndef() {
         return State::Paused;
     }
     case Command::Shutdown:
-        interruptExecution(vm.get());
+        killExecution(vm.get());
         return State::Stopped;
 
     case Command::StepInst:
@@ -439,7 +449,7 @@ State Impl::doPaused() {
         return State::Paused;
 
     case Command::StopExecution:
-        interruptExecution(getVM().get());
+        killExecution(getVM().get());
         return State::Idle;
 
     case Command::ToggleExecution:

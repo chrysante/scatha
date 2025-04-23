@@ -214,6 +214,12 @@ public:
     bool is() const {
         return std::holds_alternative<T>(*this);
     }
+
+    /// \Returns a pointer to `T` if this contains a `T`, otherwise null
+    template <typename T>
+    T const* as() const {
+        return is<T>() ? &std::get<T>(*this) : nullptr;
+    }
 };
 
 /// Exception class

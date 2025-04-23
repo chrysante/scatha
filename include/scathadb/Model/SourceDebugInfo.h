@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <scdis/Disassembly.h>
+#include <utl/function_view.hpp>
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
@@ -92,7 +93,10 @@ private:
 class SourceDebugInfo {
 public:
     ///
-    static SourceDebugInfo Make(scatha::DebugInfoMap const& map);
+    static SourceDebugInfo Make(
+        scatha::DebugInfoMap const& map,
+        utl::function_view<SourceFile(std::filesystem::path)> sourceFileLoader =
+            SourceFile::Load);
 
     ///
     std::span<SourceFile const> files() const { return _files; }

@@ -57,9 +57,7 @@ target_sources(scathadb-core
 source_group(TREE ${PROJECT_SOURCE_DIR}/include/scathadb FILES ${scathadb_core_headers})
 source_group(TREE ${PROJECT_SOURCE_DIR}/src/scathadb FILES ${scathadb_core_sources})
 
-if(NOT SCATHA_BUILD_EXECUTABLES)
-  return()
-endif()
+if(SCATHA_BUILD_EXECUTABLES)
 
 add_executable(scathadb)
 set_target_properties(scathadb PROPERTIES LINKER_LANGUAGE CXX)
@@ -117,3 +115,36 @@ target_sources(scathadb
 )
 
 source_group(TREE ${PROJECT_SOURCE_DIR}/src/scathadb FILES ${scathadb_sources})
+
+endif() # SCATHA_BUILD_EXECUTABLES
+
+if(SCATHA_BUILD_TESTS)
+
+add_executable(scathadb-test)
+set_target_properties(scathadb-test PROPERTIES LINKER_LANGUAGE CXX)
+SCSetCompilerOptions(scathadb-test)
+
+target_include_directories(scathadb-test 
+  PRIVATE 
+    src/scathadb
+)
+
+target_link_libraries(scathadb-test 
+  PRIVATE
+    scatha
+    scathadb-core
+    Catch2::Catch2WithMain
+)
+
+set(scathadb_test_sources
+    test/scathadb/Model/Model.t.cc
+)
+
+target_sources(scathadb-test 
+  PRIVATE 
+    ${scathadb_test_sources}
+)
+
+source_group(TREE ${PROJECT_SOURCE_DIR}/test/scathadb FILES ${scathadb_test_sources})
+
+endif() # SCATHA_BUILD_TESTS

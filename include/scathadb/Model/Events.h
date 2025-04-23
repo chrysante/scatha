@@ -66,6 +66,12 @@ struct DidStepOut {
     bool* isDone;
 };
 
+/// Sent by the executor after the patient process terminated execution
+struct ProcessTerminated {};
+
+/// Sent by the executor after the patient process is killed
+struct ProcessKilled {};
+
 /// Sent if UI must be reconstructed. For now this is only sent when a patient
 /// program is loaded.
 struct ReloadUIRequest {};

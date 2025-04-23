@@ -15,6 +15,7 @@
 #include <utl/strcat.hpp>
 
 #include "Model/Events.h"
+#include "Util/Messenger.h"
 
 using namespace sdb;
 
@@ -27,8 +28,9 @@ Model::Model(std::shared_ptr<Messenger> messenger):
     _messenger(std::move(messenger)),
     executor(_messenger),
     breakpointManager(_messenger, disasm.indexMap(), sourceDbg),
-    _stdout([this] { _messenger->send_now(PatientConsoleOutputEvent{}); }) {
-    executor.writeVM().get().setIOStreams(nullptr, &_stdout);
+    _stdout(std::make_unique<CallbackStringStream>(
+        [this] { _messenger->send_now(PatientConsoleOutputEvent{}); })) {
+    executor.writeVM().get().setIOStreams(nullptr, _stdout.get());
 }
 
 static scatha::DebugInfoMap readDebugInfo(std::filesystem::path inputPath) {
@@ -40,23 +42,31 @@ static scatha::DebugInfoMap readDebugInfo(std::filesystem::path inputPath) {
 }
 
 void Model::loadProgram(std::filesystem::path filepath) {
-    executor.stopExecution();
-    auto program = svm::readBinaryFromFile(filepath.string());
-    if (program.empty()) {
+    auto binary = svm::readBinaryFromFile(filepath.string());
+    if (binary.empty()) {
         std::string progName = filepath.stem();
         auto msg =
             utl::strcat("Failed to load ", progName, ". Binary is empty.\n");
         throw std::runtime_error(msg);
     }
-    auto vm = executor.writeVM();
-    vm.get().setLibdir(filepath.parent_path());
+    loadProgram(binary, filepath.parent_path(), readDebugInfo(filepath));
     _currentFilepath = filepath;
-    auto debugInfo = readDebugInfo(filepath);
-    disasm = scdis::disassemble(program, debugInfo);
-    sourceDbg = SourceDebugInfo::Make(debugInfo);
-    executor.setBinary(program);
-    breakpointManager.setProgramData(program);
+}
+
+void Model::loadProgram(
+    std::span<uint8_t const> binary, std::filesystem::path runtimeLibDir,
+    scatha::DebugInfoMap const& debugInfo,
+    utl::function_view<SourceFile(std::filesystem::path)> sourceFileLoader) {
+    _currentFilepath.clear();
+    executor.stopExecution();
+    auto vm = executor.writeVM();
+    vm.get().setLibdir(runtimeLibDir);
+    disasm = scdis::disassemble(binary, debugInfo);
+    sourceDbg = SourceDebugInfo::Make(debugInfo, sourceFileLoader);
+    executor.setBinary(std::vector(binary.begin(), binary.end()));
+    breakpointManager.setProgramData(binary);
     _messenger->send_buffered(ReloadUIRequest{});
+    _isProgramLoaded = true;
 }
 
 void Model::unloadProgram() {
@@ -68,6 +78,7 @@ void Model::unloadProgram() {
     disasm = {};
     sourceDbg = {};
     breakpointManager.clearAll();
+    _isProgramLoaded = false;
 }
 
 bool Model::isProgramLoaded() const { return !_currentFilepath.empty(); }
@@ -78,7 +89,7 @@ void Model::setArguments(std::vector<std::string> arguments) {
 
 void Model::startExecution() {
     executor.stopExecution();
-    _stdout.str({});
+    _stdout->str({});
     executor.startExecution();
 }
 

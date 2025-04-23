@@ -4,28 +4,43 @@
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <sstream>
 #include <vector>
 
+#include <scatha/DebugInfo/DebugInfo.h>
 #include <scdis/Disassembly.h>
 #include <svm/VirtualMachine.h>
+#include <utl/function_view.hpp>
 
 #include <scathadb/Model/BreakpointManager.h>
 #include <scathadb/Model/Executor.h>
 #include <scathadb/Model/SourceDebugInfo.h>
 #include <scathadb/Model/Stdout.h>
-#include <scathadb/Util/Messenger.h>
 
 namespace sdb {
+
+class Messenger;
 
 ///
 class Model {
 public:
     explicit Model(std::shared_ptr<Messenger> _messenger);
 
+    Model(Model&&) = default;
+
+    ~Model() { executor.shutdown(); }
+
     /// Load the program at \p filepath into the VM.
     /// This unloads the currently active program
     void loadProgram(std::filesystem::path filepath);
+
+    /// \overload
+    void loadProgram(std::span<uint8_t const> binary,
+                     std::filesystem::path runtimeLibDir,
+                     scatha::DebugInfoMap const& debugInfo,
+                     utl::function_view<SourceFile(std::filesystem::path)>
+                         sourceFileLoader = SourceFile::Load);
 
     /// Unload the currently active program
     void unloadProgram();
@@ -64,6 +79,9 @@ public:
     ///
     bool isPaused() const { return executor.isPaused(); }
 
+    /// \Returns the messenger
+    Messenger* messenger() const { return _messenger.get(); }
+
     /// \Returns a locked read-only reference to the VM
     Locked<svm::VirtualMachine const&> readVM() { return executor.readVM(); }
 
@@ -74,7 +92,7 @@ public:
     scdis::Disassembly const& disassembly() const { return disasm; }
 
     /// \Returns the standard-out stream
-    CallbackStringStream const& standardout() const { return _stdout; }
+    CallbackStringStream const& standardout() const { return *_stdout; }
 
     ///
     void toggleInstBreakpoint(size_t instIndex);
@@ -96,6 +114,7 @@ public:
 
 private:
     std::shared_ptr<Messenger> _messenger;
+    bool _isProgramLoaded = false;
     std::filesystem::path _currentFilepath;
     std::vector<std::string> runArguments;
     Executor executor;
@@ -103,7 +122,7 @@ private:
     SourceDebugInfo sourceDbg;
     BreakpointManager breakpointManager;
 
-    CallbackStringStream _stdout;
+    std::unique_ptr<CallbackStringStream> _stdout;
 };
 
 } // namespace sdb

@@ -2,11 +2,12 @@
 
 using namespace sdb;
 
-void Messenger::notifyMainTread() {
-    if (!didNotifyMain.exchange(true)) submitTaskCb([this] { flush(); });
+void Messenger::notify() {
+    if (!didNotify.exchange(true) && sendBufferedCallback)
+        sendBufferedCallback(*this);
 }
 
 void Messenger::flush() {
-    didNotifyMain.store(false);
+    didNotify.store(false);
     utl::buffered_messenger::flush();
 }

@@ -63,6 +63,10 @@ public:
     /// Steps out of the current function
     void stepOut();
 
+    /// Stops the executor thread. Can be used to manually control destruction
+    /// order.
+    void shutdown();
+
     /// \Returns `true` if a program is currently running
     bool isRunning() const;
 
