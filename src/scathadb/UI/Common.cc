@@ -79,7 +79,7 @@ struct ToolbarBase: ComponentBase {
         }
     }
 
-    Element Render() override {
+    Element OnRender() override {
         std::vector<Element> elems;
         if (options.enclosingSeparators) {
             elems.push_back(options.separator());
@@ -157,7 +157,7 @@ Component sdb::TabView(std::vector<NamedComponent> children) {
     return Make<TabViewBase>(std::move(children));
 }
 
-Element ScrollBase::Render() {
+Element ScrollBase::OnRender() {
     if (_box != _lastBox) {
         clampScroll();
         _lastBox = _box;

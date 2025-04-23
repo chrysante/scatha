@@ -84,7 +84,7 @@ ModalView sdb::PatientStartFailureModal(std::shared_ptr<Messenger> messenger) {
             });
         }
 
-        Element Render() override {
+        Element OnRender() override {
             return text(exc.message()) | center | flex;
         }
 

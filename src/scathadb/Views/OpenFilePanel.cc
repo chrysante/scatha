@@ -222,11 +222,11 @@ struct SuggestionView: ScrollBase {
         }
     }
 
-    Element Render() override {
+    Element OnRender() override {
         if (suggestion->current) {
             center(utl::narrow_cast<long>(*suggestion->current));
         }
-        return ScrollBase::Render();
+        return ScrollBase::OnRender();
     }
 
     SuggestionResult* suggestion;
@@ -308,7 +308,7 @@ struct OpenFilePanelBase: ComponentBase {
         }
     }
 
-    Element Render() override {
+    Element OnRender() override {
         std::vector<Element> elems;
         for (size_t i = 0; i < ChildCount(); ++i) {
             if (i > 0) {

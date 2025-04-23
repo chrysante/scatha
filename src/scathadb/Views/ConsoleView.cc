@@ -34,7 +34,7 @@ struct ConsoleViewImpl: ScrollBase {
 
     ConsoleViewImpl(Model const* model): model(model) {}
 
-    Element Render() override {
+    Element OnRender() override {
         auto consoleText = model->standardout().str();
         size_t hash = computeHash(consoleText);
         if (hash != lastHash) {
@@ -50,7 +50,7 @@ struct ConsoleViewImpl: ScrollBase {
                 setScroll(999999999);
             }
         }
-        return ScrollBase::Render();
+        return ScrollBase::OnRender();
     }
 };
 

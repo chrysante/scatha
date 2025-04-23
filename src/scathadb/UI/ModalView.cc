@@ -29,7 +29,7 @@ struct ModalViewBase: ComponentBase {
         Add(body);
     }
 
-    Element Render() override {
+    Element OnRender() override {
         return vbox({
                    ChildAt(0)->Render(),
                    sdb::separator(),

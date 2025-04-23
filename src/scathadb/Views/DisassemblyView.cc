@@ -40,7 +40,7 @@ struct DisasmView: FileViewBase, Transceiver {
     LineInfo getInstLineInfo(long lineIndex, size_t instIndex) const;
     LineInfo getLabelLineInfo(long lineIndex) const;
 
-    Element Render() override;
+    Element OnRender() override;
     bool OnEvent(Event event) override;
 
     void toggleBreakpoint(size_t index) { model->toggleInstBreakpoint(index); }
@@ -259,9 +259,9 @@ LineInfo DisasmView::getLabelLineInfo(long lineIndex) const {
     };
 }
 
-Element DisasmView::Render() {
+Element DisasmView::OnRender() {
     if (model->disassembly().empty()) return placeholder("No Program Loaded");
-    return ScrollBase::Render();
+    return ScrollBase::OnRender();
 }
 
 bool DisasmView::OnEvent(Event event) { return FileViewBase::OnEvent(event); }

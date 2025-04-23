@@ -22,7 +22,7 @@ struct RegEntry: ComponentBase {
     explicit RegEntry(Model* model, intptr_t index):
         model(model), index(index) {}
 
-    Element Render() override;
+    Element OnRender() override;
 
     Model* model;
     intptr_t index;
@@ -35,7 +35,7 @@ struct RegView: ScrollBase {
         }
     }
 
-    Element Render() override {
+    Element OnRender() override {
         if (!model->isPaused()) return text("");
         auto vm = model->readVM();
         auto regs = vm.get().registerData();
@@ -44,7 +44,7 @@ struct RegView: ScrollBase {
         auto execFrame = vm.get().getCurrentExecFrame();
         vm.unlock();
         currentOffset = execFrame.regPtr - execFrame.bottomReg;
-        return ScrollBase::Render();
+        return ScrollBase::OnRender();
     }
 
     Model* model;
@@ -55,7 +55,7 @@ struct RegView: ScrollBase {
 
 } // namespace
 
-Element RegEntry::Render() {
+Element RegEntry::OnRender() {
     auto* parent = dynamic_cast<RegView const*>(Parent());
     auto& values = parent->values;
     if (index >= (ssize_t)values.size()) {

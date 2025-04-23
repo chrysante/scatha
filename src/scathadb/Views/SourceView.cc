@@ -47,11 +47,11 @@ struct SourceViewBase: FileViewBase, Transceiver {
         reload();
     }
 
-    Element Render() override {
+    Element OnRender() override {
         if (model->disassembly().empty())
             return placeholder("No Program Loaded");
         if (!fileIndex) return placeholder("No File Open");
-        return ScrollBase::Render();
+        return ScrollBase::OnRender();
     }
 
     bool OnEvent(Event event) override { return FileViewBase::OnEvent(event); }

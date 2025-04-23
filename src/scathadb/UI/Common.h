@@ -125,7 +125,7 @@ protected:
     ///
     void setFocusLine(long line);
 
-    ftxui::Element Render() override;
+    ftxui::Element OnRender() override;
     bool OnEvent(ftxui::Event event) override;
     /// Scroll views are always focusable to allow keyboard navigation
     bool Focusable() const override { return true; }
