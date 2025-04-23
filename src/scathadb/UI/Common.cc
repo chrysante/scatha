@@ -159,11 +159,11 @@ Component sdb::TabView(std::vector<NamedComponent> children) {
 
 Element ScrollBase::OnRender() {
     if (_box != _lastBox) {
-        clampScroll();
+        _scrollPos = clampScroll(_scrollPos);
         _lastBox = _box;
     }
     std::vector<Element> elems;
-    size_t begin = utl::narrow_cast<size_t>(scrollPos.load());
+    size_t begin = utl::narrow_cast<size_t>(_scrollPos);
     size_t end = ChildCount();
     for (size_t index = 0; index < begin; ++index) {
         ChildAt(index)->Render();
@@ -181,18 +181,14 @@ bool ScrollBase::OnEvent(Event event) {
     return ComponentBase::OnEvent(event);
 }
 
-void ScrollBase::setScroll(long value) {
-    scrollPos = value;
-    clampScroll();
-}
+void ScrollBase::setScroll(long value) { _scrollPos = clampScroll(value); }
 
 void ScrollBase::setScrollOffset(long offset) {
-    scrollPos += offset;
-    clampScroll();
+    _scrollPos = clampScroll(_scrollPos + offset);
 }
 
 bool ScrollBase::isInView(long line) const {
-    return line >= scrollPos && line <= scrollPos + yExtend(_box);
+    return line >= _scrollPos && line <= _scrollPos + yExtend(_box);
 }
 
 void ScrollBase::center(long line, double ratio) {
@@ -242,8 +238,8 @@ bool ScrollBase::handleScroll(Event event) {
     return false;
 }
 
-void ScrollBase::clampScroll() {
-    scrollPos = std::clamp(scrollPos.load(), long{ 0 }, maxScrollPositition());
+long ScrollBase::clampScroll(long value) {
+    return std::clamp(value, long{ 0 }, maxScrollPositition());
 }
 
 long ScrollBase::maxScrollPositition() const {

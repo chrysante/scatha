@@ -95,7 +95,7 @@ public:
     ftxui::Box box() const { return _box; }
 
     /// \Returns the current scroll position
-    long scrollPosition() const { return scrollPos; }
+    long scrollPosition() const { return _scrollPos; }
 
     /// Maximum scroll position based on the current view contents
     long maxScrollPositition() const;
@@ -133,10 +133,10 @@ protected:
 private:
     bool isScrollUp(ftxui::Event event) const;
     bool isScrollDown(ftxui::Event event) const;
-    void clampScroll();
+    [[nodiscard]] long clampScroll(long value);
 
-    std::atomic<long> scrollPos = 0;
-    std::atomic<long> _focusLine = 0;
+    long _scrollPos = 0;
+    long _focusLine = 0;
     ftxui::Box _box, _lastBox;
 };
 
