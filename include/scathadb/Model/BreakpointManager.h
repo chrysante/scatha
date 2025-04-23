@@ -10,8 +10,8 @@
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
-#include "App/Messenger.h"
-#include "Model/SourceDebugInfo.h"
+#include <scathadb/Model/SourceDebugInfo.h>
+#include <scathadb/Util/Messenger.h>
 
 namespace sdb {
 

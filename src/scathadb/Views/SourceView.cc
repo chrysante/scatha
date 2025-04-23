@@ -7,11 +7,11 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
-#include "App/Messenger.h"
 #include "Model/Events.h"
 #include "Model/Model.h"
 #include "Model/SourceFile.h"
 #include "UI/Common.h"
+#include "Util/Messenger.h"
 #include "Views/FileViewCommon.h"
 #include "Views/HelpPanel.h"
 

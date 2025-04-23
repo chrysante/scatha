@@ -13,7 +13,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
-#include "Model/SourceFile.h"
+#include <scathadb/Model/SourceFile.h>
 
 namespace scatha {
 struct DebugInfoMap;

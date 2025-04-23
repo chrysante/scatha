@@ -10,11 +10,11 @@
 #include <scdis/Disassembly.h>
 #include <svm/VirtualMachine.h>
 
-#include "App/Messenger.h"
-#include "Model/BreakpointManager.h"
-#include "Model/Executor.h"
-#include "Model/SourceDebugInfo.h"
-#include "Model/Stdout.h"
+#include <scathadb/Model/BreakpointManager.h>
+#include <scathadb/Model/Executor.h>
+#include <scathadb/Model/SourceDebugInfo.h>
+#include <scathadb/Model/Stdout.h>
+#include <scathadb/Util/Messenger.h>
 
 namespace sdb {
 

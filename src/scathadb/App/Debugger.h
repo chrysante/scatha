@@ -11,10 +11,10 @@
 
 #include <ftxui/component/screen_interactive.hpp>
 
-#include "App/Messenger.h"
 #include "Model/Model.h"
 #include "UI/Common.h"
 #include "UI/ModalView.h"
+#include "Util/Messenger.h"
 
 namespace sdb {
 

@@ -1,5 +1,5 @@
-#ifndef SDB_APP_MESSENGER_H_
-#define SDB_APP_MESSENGER_H_
+#ifndef SDB_UTIL_MESSENGER_H_
+#define SDB_UTIL_MESSENGER_H_
 
 #include <atomic>
 #include <functional>
@@ -45,4 +45,4 @@ using Transceiver = utl::transceiver<Messenger>;
 
 } // namespace sdb
 
-#endif // SDB_APP_MESSENGER_H_
+#endif // SDB_UTIL_MESSENGER_H_

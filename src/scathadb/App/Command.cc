@@ -6,7 +6,6 @@
 #include "Views/HelpPanel.h"
 
 using namespace sdb;
-using namespace ftxui;
 
 Command const& Command::Add(Command cmd) {
     addPanelCommandsInfo("Global commands",
@@ -15,8 +14,8 @@ Command const& Command::Add(Command cmd) {
     return _all.back();
 }
 
-ComponentDecorator Command::EventCatcher(Debugger* db) {
-    return CatchEvent([=](Event event) {
+ftxui::ComponentDecorator Command::EventCatcher(Debugger* db) {
+    return ftxui::CatchEvent([=](ftxui::Event event) {
         if (event.is_character()) {
             for (auto& cmd: Command::All()) {
                 if (event.character() != cmd.hotkey) {
@@ -38,16 +37,17 @@ ComponentDecorator Command::EventCatcher(Debugger* db) {
 
 std::vector<Command> Command::_all;
 
-Component sdb::ToolbarButton(Debugger* debugger, Command command) {
-    auto opt = ButtonOption::Simple();
-    opt.transform = [=](EntryState const&) {
+ftxui::Component sdb::ToolbarButton(Debugger* debugger, Command command) {
+    auto opt = ftxui::ButtonOption::Simple();
+    opt.transform = [=](ftxui::EntryState const&) {
         auto str = command.buttonLabel(*debugger);
-        auto elem = text(str) | bold;
+        auto elem = ftxui::text(str) | ftxui::bold;
         if (!command.isActive(*debugger)) {
-            elem |= dim;
+            elem |= ftxui::dim;
         }
-        return elem | center |
-               size(WIDTH, EQUAL, utl::narrow_cast<int>(str.size() + 2));
+        return elem | ftxui::center |
+               ftxui::size(ftxui::WIDTH, ftxui::EQUAL,
+                           utl::narrow_cast<int>(str.size() + 2));
     };
     auto callback = [=] {
         if (command.isActive(*debugger)) {
@@ -57,5 +57,5 @@ Component sdb::ToolbarButton(Debugger* debugger, Command command) {
             beep();
         }
     };
-    return Button("Button", callback, opt);
+    return ftxui::Button("Button", callback, opt);
 }

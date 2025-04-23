@@ -1,3 +1,62 @@
+
+add_library(scathadb-core STATIC)
+SCSetCompilerOptions(scathadb-core)
+
+target_link_libraries(scathadb-core
+  PUBLIC
+    libscdis
+    range-v3
+    utility
+
+  PRIVATE
+    scatha-debuginfo
+    libsvm
+    magic_enum
+)
+
+target_include_directories(scathadb-core
+  PUBLIC
+    include
+  PRIVATE
+    include/scathadb
+    src/scathadb
+)
+
+set(scathadb_core_headers
+    include/scathadb/Model/BreakpointManager.h
+    include/scathadb/Model/Events.h
+    include/scathadb/Model/Executor.h
+    include/scathadb/Model/Model.h
+    include/scathadb/Model/Options.h
+    include/scathadb/Model/Stdout.h
+    include/scathadb/Model/SourceDebugInfo.h
+    include/scathadb/Model/SourceFile.h
+
+    include/scathadb/Util/Messenger.h
+)
+
+set(scathadb_core_sources
+    src/scathadb/Model/BreakpointManager.cc
+    src/scathadb/Model/Events.cc
+    src/scathadb/Model/Executor.cc
+    src/scathadb/Model/Model.cc
+    src/scathadb/Model/Options.cc
+    src/scathadb/Model/Stdout.cc
+    src/scathadb/Model/SourceDebugInfo.cc
+    src/scathadb/Model/SourceFile.cc
+
+    src/scathadb/Util/Messenger.cc
+)
+
+target_sources(scathadb-core
+  PRIVATE
+    ${scathadb_core_headers}
+    ${scathadb_core_sources}
+)
+
+source_group(TREE ${PROJECT_SOURCE_DIR}/include/scathadb FILES ${scathadb_core_headers})
+source_group(TREE ${PROJECT_SOURCE_DIR}/src/scathadb FILES ${scathadb_core_sources})
+
 if(NOT SCATHA_BUILD_EXECUTABLES)
   return()
 endif()
@@ -9,14 +68,9 @@ SCSetCompilerOptions(scathadb)
 
 target_link_libraries(scathadb
   PRIVATE
-    scatha-debuginfo
-    libsvm
-    libscdis
+    scathadb-core
     range-v3
     utility
-    csp
-    nlohmann_json
-    magic_enum
     CLI11::CLI11
     ftxui::screen
     ftxui::dom
@@ -25,6 +79,7 @@ target_link_libraries(scathadb
 
 target_include_directories(scathadb
   PRIVATE
+    include/scathadb
     src/scathadb
 )
 
@@ -34,25 +89,6 @@ set(scathadb_sources
     src/scathadb/App/Debugger.cc
     src/scathadb/App/Debugger.h
     src/scathadb/App/Main.cc
-    src/scathadb/App/Messenger.cc
-    src/scathadb/App/Messenger.h
-
-    src/scathadb/Model/BreakpointManager.cc
-    src/scathadb/Model/BreakpointManager.h
-    src/scathadb/Model/Events.h
-    src/scathadb/Model/Events.cc
-    src/scathadb/Model/Executor.cc
-    src/scathadb/Model/Executor.h
-    src/scathadb/Model/Model.cc
-    src/scathadb/Model/Model.h
-    src/scathadb/Model/Options.cc
-    src/scathadb/Model/Options.h
-    src/scathadb/Model/Stdout.cc
-    src/scathadb/Model/Stdout.h
-    src/scathadb/Model/SourceDebugInfo.cc
-    src/scathadb/Model/SourceDebugInfo.h
-    src/scathadb/Model/SourceFile.cc
-    src/scathadb/Model/SourceFile.h
 
     src/scathadb/UI/Common.cc
     src/scathadb/UI/Common.h

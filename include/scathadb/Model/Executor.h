@@ -10,8 +10,8 @@
 
 #include <svm/VirtualMachine.h>
 
-#include "App/Messenger.h"
-#include "Model/SourceDebugInfo.h"
+#include <scathadb/Model/SourceDebugInfo.h>
+#include <scathadb/Util/Messenger.h>
 
 namespace sdb {
 

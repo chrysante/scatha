@@ -4,9 +4,9 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
-#include "App/Messenger.h"
 #include "Model/Events.h"
 #include "UI/Common.h"
+#include "Util/Messenger.h"
 
 using namespace sdb;
 using namespace ftxui;
