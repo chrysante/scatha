@@ -28,10 +28,6 @@ static void waitWithTimeout(std::predicate auto condition,
 
 template <typename State>
 struct Notifier {
-    std::condition_variable cv;
-    std::mutex mutex;
-    State state;
-
     void notify(std::invocable<State&> auto setter) {
         std::unique_lock lock(mutex);
         std::invoke(setter, state);
@@ -39,21 +35,28 @@ struct Notifier {
         cv.notify_one();
     }
 
-    void waitForAndReset(std::predicate<State const&> auto condition) {
-        waitFor(condition);
-        state = {};
+    template <typename T, typename U = T>
+    void notify(T(State::* member), U&& value) {
+        notify([&](State& state) { state.*member = std::forward<U>(value); });
     }
 
-    void waitFor(std::predicate<State const&> auto condition) {
+    [[nodiscard]] State wait(std::predicate<State const&> auto condition) {
         std::unique_lock lock(mutex);
         cv.wait(lock, [&] { return std::invoke(condition, state); });
+        return std::exchange(state, State{});
     }
+
+private:
+    std::condition_variable cv;
+    std::mutex mutex;
+    State state;
 };
 
 struct CommState {
     bool terminated = false, killed = false;
-    bool haveEvent = false;
+    std::optional<sdb::BreakEvent> breakEvent;
 
+    bool haveBreakEvent() const { return breakEvent.has_value(); }
     bool finished() const { return terminated || killed; }
 };
 
@@ -78,10 +81,13 @@ static Comm makeComm() {
     auto messenger = std::make_shared<sdb::Messenger>(callback);
     auto notifier = std::make_unique<Notifier<CommState>>();
     messenger->listen([notifier = notifier.get()](sdb::ProcessTerminated) {
-        notifier->notify([](CommState& state) { state.terminated = true; });
+        notifier->notify(&CommState::terminated, true);
     });
     messenger->listen([notifier = notifier.get()](sdb::ProcessKilled) {
-        notifier->notify([](CommState& state) { state.killed = true; });
+        notifier->notify(&CommState::killed, true);
+    });
+    messenger->listen([notifier = notifier.get()](sdb::BreakEvent event) {
+        notifier->notify(&CommState::breakEvent, event);
     });
     return { std::move(notifier), std::move(messenger) };
 }
@@ -119,7 +125,6 @@ static sdb::Model makeModel(std::shared_ptr<sdb::Messenger> messenger,
 
 TEST_CASE("Print test", "[model]") {
     auto [notifier, messenger] = makeComm();
-    auto& state = notifier->state;
     auto source = R"(
 /* 2 */ fn main() {
 /* 3 */     __builtin_putstr("Hello");
@@ -130,28 +135,23 @@ TEST_CASE("Print test", "[model]") {
     auto model = makeModel(messenger, { { "test-file.sc", source } });
     SECTION("Run uninterrupted") {
         model.startExecution();
-        notifier->waitFor(&CommState::finished);
+        auto state = notifier->wait(&CommState::finished);
         CHECK(state.terminated);
         CHECK(!state.killed);
         CHECK(model.standardout().str().starts_with("Hello World\n"));
     }
     SECTION("Breakpoints") {
-        sdb::BreakEvent lastBreakEvent;
-        messenger->listen([&](sdb::BreakEvent event) {
-            lastBreakEvent = event;
-            notifier->notify([](CommState& state) { state.haveEvent = true; });
-        });
         model.toggleSourceBreakpoint({ .file = 0, .line = 4 });
         model.startExecution();
-        notifier->waitForAndReset(&CommState::haveEvent);
-        CHECK(lastBreakEvent.state == sdb::BreakState::Paused);
-        CHECK(!lastBreakEvent.exception.hasValue());
+        auto state = notifier->wait(&CommState::haveBreakEvent);
+        CHECK(state.breakEvent->state == sdb::BreakState::Paused);
+        CHECK(!state.breakEvent->exception.hasValue());
         CHECK(model.standardout().str() == "Hello");
         model.stepSourceLine();
-        notifier->waitForAndReset(&CommState::haveEvent);
+        state = notifier->wait(&CommState::haveBreakEvent);
         CHECK(model.standardout().str() == "Hello World");
         model.toggleExecution();
-        notifier->waitFor(&CommState::finished);
+        state = notifier->wait(&CommState::finished);
         CHECK(state.terminated);
         CHECK(!state.killed);
         CHECK(model.standardout().str().starts_with("Hello World\n"));
@@ -160,7 +160,6 @@ TEST_CASE("Print test", "[model]") {
 
 TEST_CASE("Memory error test", "[model]") {
     auto [notifier, messenger] = makeComm();
-    auto& state = notifier->state;
     auto source = R"(
 /* 2 */ fn main() -> int {
 /* 3 */     let p: *int = null;
@@ -168,24 +167,18 @@ TEST_CASE("Memory error test", "[model]") {
 /* 5 */ }
 )";
     auto model = makeModel(messenger, { { "test-file.sc", source } });
-    sdb::BreakEvent lastBreakEvent;
-    messenger->listen([&](sdb::BreakEvent event) {
-        lastBreakEvent = event;
-        notifier->notify([](CommState& state) { state.haveEvent = true; });
-    });
     model.startExecution();
-    notifier->waitForAndReset(&CommState::haveEvent);
-    auto* memError = lastBreakEvent.exception.as<svm::MemoryAccessError>();
+    auto state = notifier->wait(&CommState::haveBreakEvent);
+    auto* memError = state.breakEvent->exception.as<svm::MemoryAccessError>();
     REQUIRE(memError);
     CHECK(memError->reason() == svm::MemoryAccessError::MemoryNotAllocated);
     model.stopExecution();
-    notifier->waitFor(&CommState::finished);
+    state = notifier->wait(&CommState::finished);
     CHECK(state.killed);
 }
 
 TEST_CASE("Multifile breakpoints", "[model]") {
     auto [notifier, messenger] = makeComm();
-    auto& state = notifier->state;
     auto sourceMain = R"(
 /* 2 */ fn main() {
 /* 3 */     myPrint("Start");
@@ -200,45 +193,43 @@ TEST_CASE("Multifile breakpoints", "[model]") {
 )";
     auto model = makeModel(messenger, { { "main.sc", sourceMain },
                                         { "print.sc", sourcePrint } });
-    sdb::BreakEvent lastBreakEvent;
-    messenger->listen([&](sdb::BreakEvent event) {
-        lastBreakEvent = event;
-        notifier->notify([](CommState& state) { state.haveEvent = true; });
-    });
     model.toggleSourceBreakpoint({ .file = 0, .line = 4 });
     model.toggleSourceBreakpoint({ .file = 1, .line = 3 });
 
     model.startExecution();
-    notifier->waitForAndReset(&CommState::haveEvent);
-    CHECK(lastBreakEvent.state == sdb::BreakState::Paused);
+    auto state = notifier->wait(&CommState::haveBreakEvent);
+    CHECK(state.breakEvent->state == sdb::BreakState::Paused);
     auto sourceLoc =
-        model.sourceDebug().sourceMap().toSourceLoc(lastBreakEvent.ipo);
+        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
     CHECK(sourceLoc.value().line == sdb::SourceLine{ .file = 1, .line = 3 });
     CHECK(model.standardout().str().empty());
 
     model.toggleExecution();
-    notifier->waitForAndReset(&CommState::haveEvent);
-    CHECK(lastBreakEvent.state == sdb::BreakState::Paused);
-    sourceLoc = model.sourceDebug().sourceMap().toSourceLoc(lastBreakEvent.ipo);
+    state = notifier->wait(&CommState::haveBreakEvent);
+    CHECK(state.breakEvent->state == sdb::BreakState::Paused);
+    sourceLoc =
+        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
     CHECK(sourceLoc.value().line == sdb::SourceLine{ .file = 0, .line = 4 });
     CHECK(model.standardout().str() == "Start\n");
 
     model.toggleExecution();
-    notifier->waitForAndReset(&CommState::haveEvent);
-    CHECK(lastBreakEvent.state == sdb::BreakState::Paused);
-    sourceLoc = model.sourceDebug().sourceMap().toSourceLoc(lastBreakEvent.ipo);
+    state = notifier->wait(&CommState::haveBreakEvent);
+    CHECK(state.breakEvent->state == sdb::BreakState::Paused);
+    sourceLoc =
+        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
     CHECK(sourceLoc.value().line == sdb::SourceLine{ .file = 1, .line = 3 });
     CHECK(model.standardout().str() == "Start\n");
 
     model.toggleExecution();
-    notifier->waitForAndReset(&CommState::haveEvent);
-    CHECK(lastBreakEvent.state == sdb::BreakState::Paused);
-    sourceLoc = model.sourceDebug().sourceMap().toSourceLoc(lastBreakEvent.ipo);
+    state = notifier->wait(&CommState::haveBreakEvent);
+    CHECK(state.breakEvent->state == sdb::BreakState::Paused);
+    sourceLoc =
+        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
     CHECK(sourceLoc.value().line == sdb::SourceLine{ .file = 1, .line = 3 });
     CHECK(model.standardout().str() == "Start\nContinue\n");
 
     model.toggleExecution();
-    notifier->waitFor(&CommState::finished);
+    state = notifier->wait(&CommState::finished);
     CHECK(state.terminated);
     CHECK(model.standardout().str().starts_with("Start\nContinue\nDone\n"));
 }
@@ -251,7 +242,6 @@ extern "C" void live_patching_host_callback() {
 
 TEST_CASE("Live patching breakpoints", "[model]") {
     auto [notifier, messenger] = makeComm();
-    auto& state = notifier->state;
     auto source = R"(
 /* 2 */ extern "C" fn live_patching_host_callback() -> void;
 /* 3 */ fn main() -> int {
@@ -263,27 +253,24 @@ TEST_CASE("Live patching breakpoints", "[model]") {
 )";
     auto model = makeModel(messenger, { { "test-file.sc", source } },
                            scatha::Asm::LinkerOptions{ .searchHost = true });
-    sdb::BreakEvent lastBreakEvent;
-    messenger->listen([&](sdb::BreakEvent event) {
-        lastBreakEvent = event;
-        notifier->notify([](CommState& state) { state.haveEvent = true; });
-    });
     std::atomic_bool host_callback_called = false;
     g_host_callback_called = &host_callback_called;
     utl::scope_guard reset = [] { g_host_callback_called = nullptr; };
+
     model.startExecution();
     waitWithTimeout([&] { return host_callback_called.load(); });
     sdb::SourceLine callLine = { .file = 0, .line = 5 };
     model.toggleSourceBreakpoint(callLine);
-    notifier->waitForAndReset(&CommState::haveEvent);
-    CHECK(lastBreakEvent.state == sdb::BreakState::Paused);
+    auto state = notifier->wait(&CommState::haveBreakEvent);
+    CHECK(state.breakEvent->state == sdb::BreakState::Paused);
     auto sourceLoc =
-        model.sourceDebug().sourceMap().toSourceLoc(lastBreakEvent.ipo);
+        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
     CHECK(sourceLoc.value().line.line == 5);
+
     model.toggleSourceBreakpoint(callLine);
     model.toggleExecution();
     waitWithTimeout([&] { return host_callback_called.load(); });
     model.stopExecution();
-    notifier->waitFor(&CommState::finished);
+    state = notifier->wait(&CommState::finished);
     CHECK(state.killed);
 }
