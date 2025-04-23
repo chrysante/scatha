@@ -90,6 +90,7 @@ private:
     utl::hashset<SourceLine> sourceLineBreakpointSet;
     BreakpointPatcher patcher;
     std::vector<scdis::InstructionPointerOffset> steppingBreakpoints;
+    uint64_t stepOutStackPtr = 0;
 };
 
 } // namespace sdb

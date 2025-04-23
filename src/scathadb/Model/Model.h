@@ -56,6 +56,9 @@ public:
     void stepSourceLine() { executor.stepSourceLine(); }
 
     ///
+    void stepOut() { executor.stepOut(); }
+
+    ///
     bool isIdle() const { return executor.isIdle(); }
 
     ///

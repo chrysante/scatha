@@ -144,6 +144,26 @@ auto const StepSourceLineCmd = Command::Add({
     .action = [](Debugger& db) { db.model()->stepSourceLine(); },
     .description = "Execute the current line"
 });
+
+auto const StepIntoCallCmd = Command::Add({
+    .hotkey = "m",
+    .buttonLabel = [](Debugger const&) { return "v_"; },
+    .isActive = [](Debugger const& db) {
+        return !db.model()->sourceDebug().empty() && db.model()->isPaused();
+    },
+        .action = [](Debugger&) { beep(); },
+        .description = "Step into the next function call"
+});
+
+auto const StepOutOfCallCmd = Command::Add({
+    .hotkey = "n",
+    .buttonLabel = [](Debugger const&) { return "^_"; },
+    .isActive = [](Debugger const& db) {
+        return !db.model()->sourceDebug().empty() && db.model()->isPaused();
+    },
+    .action = [](Debugger& db) { db.model()->stepOut(); },
+    .description = "Step out of the current function call"
+});
 // clang-format on
 
 Debugger::Debugger():
@@ -167,13 +187,20 @@ Debugger::Debugger():
     auto sidebar =
         TabView({ { " Files ", SourceFileBrowser(model(), _messenger) },
                   { " VM State ", VMStateView(model()) } });
-    auto sourceView = SourceView(model(), _messenger);
-    auto disasmView = DisassemblyView(model(), _messenger);
-    auto mainView = SplitLeft(sourceView, disasmView, &_mainSplitSize);
+    auto sourceView = [&] { return SourceView(model(), _messenger); };
+    auto disasmView = [&] { return DisassemblyView(model(), _messenger); };
+    auto singleSourceView = sourceView();
+    auto splitMain =
+        sdb::SplitLeft(sourceView(), disasmView(), &_mainSplitSize);
+    auto mainView =
+        ftxui::Container::Tab({ singleSourceView, splitMain, disasmView() },
+                              &_mainViewIdx);
     auto dbgCtrlBar = Toolbar({
         ToolbarButton(this, ToggleExecCmd),
-        ToolbarButton(this, StepSourceLineCmd),
         ToolbarButton(this, StepInstCmd),
+        ToolbarButton(this, StepSourceLineCmd),
+        ToolbarButton(this, StepIntoCallCmd),
+        ToolbarButton(this, StepOutOfCallCmd),
         Spacer(),
         ToolbarButton(this, ToggleConsoleCmd),
     });
@@ -215,8 +242,8 @@ Debugger::Debugger():
         if (event.is_character()) beep();
         return false;
     });
-    // Instruction view is focused by default
-    disasmView->TakeFocus();
+    // Source view is focused by default
+    singleSourceView->TakeFocus();
 }
 
 void Debugger::run() {
@@ -260,23 +287,6 @@ void Debugger::toggleBottombar() {
     }
 }
 
-void Debugger::cycleMainViews() {
-    _mainViewIdx = (_mainViewIdx + 1) % 3;
-    switch (_mainViewIdx) {
-    case 0:
-        _mainSplitSize = 1000;
-        break;
-    case 1:
-        _mainSplitSize = _mainSplitSizeBackup;
-        break;
-    case 2:
-        _mainSplitSizeBackup = _mainSplitSize;
-        _mainSplitSize = -1;
-        break;
-    default:
-        assert(false);
-        break;
-    }
-}
+void Debugger::cycleMainViews() { _mainViewIdx = (_mainViewIdx + 1) % 3; }
 
 void Debugger::refreshScreen() { _screen.PostEvent(Event::Special("Refresh")); }

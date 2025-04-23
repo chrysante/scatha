@@ -101,8 +101,10 @@ BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
         auto beginIndex = ipoIndexMap.ipoToIndex(function->begin);
         if (!beginIndex) return;
         auto startLoc = sourceDebugInfo.sourceMap().toSourceLoc(event.ipo);
-        if (!startLoc) return;
-        auto line = startLoc->line;
+        auto startLine = [&]() -> std::optional<SourceLine> {
+            if (!startLoc) return std::nullopt;
+            return startLoc->line;
+        }();
         for (size_t index = *beginIndex; ipoIndexMap.isIndexValid(index);
              ++index)
         {
@@ -110,7 +112,7 @@ BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
             if (ipo >= function->end) break;
             bool isReturn = patcher.opcodeAt(ipo) == scbinutil::OpCode::ret;
             auto sourceLoc = sourceDebugInfo.sourceMap().toSourceLoc(ipo);
-            if (isReturn || (sourceLoc && sourceLoc->line != line)) {
+            if (isReturn || (sourceLoc && sourceLoc->line != startLine)) {
                 steppingBreakpoints.push_back(ipo);
                 patcher.pushBreakpoint(ipo, true);
             }
@@ -123,6 +125,27 @@ BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
         steppingBreakpoints.clear();
         patcher.patchInstructionStream(event.vm.getBinaryPointer());
         *event.isReturn = patcher.opcodeAt(event.ipo) == scbinutil::OpCode::ret;
+    });
+    listen([this](WillStepOut event) {
+        auto frame = event.vm.getCurrentExecFrame();
+        if (frame.regPtr - frame.bottomReg < 3) return;
+        auto* retAddr = reinterpret_cast<uint8_t*>(frame.regPtr[-1]);
+        stepOutStackPtr = frame.regPtr[-3];
+        scdis::InstructionPointerOffset dest(
+            utl::narrow_cast<uint64_t>(retAddr - event.vm.getBinaryPointer()));
+        patcher.pushBreakpoint(dest, true);
+        patcher.patchInstructionStream(event.vm.getBinaryPointer());
+    });
+    listen([this](DidStepOut event) {
+        auto frame = event.vm.getCurrentExecFrame();
+        uint64_t stackPtr = std::bit_cast<uint64_t>(frame.stackPtr);
+        if (stepOutStackPtr >= stackPtr) {
+            *event.isDone = false;
+            return;
+        }
+        *event.isDone = true;
+        patcher.popBreakpoint(event.ipo);
+        patcher.patchInstructionStream(event.vm.getBinaryPointer());
     });
 }
 

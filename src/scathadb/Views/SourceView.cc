@@ -29,8 +29,13 @@ struct SourceViewBase: FileViewBase, Transceiver {
             TakeFocus();
         });
         listen([this](BreakEvent const& event) {
+            breakState = event.state;
+            exc = event.exception;
             auto SL = model->sourceDebug().sourceMap().toSourceLoc(event.ipo);
-            if (!SL) return;
+            if (!SL) {
+                breakIndex = std::nullopt;
+                return;
+            }
             auto [fileIdx, lineIdx] = SL->line;
             if (lineIdx != fileIndex) reloadFile(size_t(fileIdx));
             if (auto line = indexToLine(lineIdx)) {
@@ -38,8 +43,6 @@ struct SourceViewBase: FileViewBase, Transceiver {
                 scrollToLine(*line);
             }
             breakIndex = lineIdx;
-            breakState = event.state;
-            exc = event.exception;
         });
         reload();
     }

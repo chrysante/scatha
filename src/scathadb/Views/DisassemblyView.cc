@@ -127,6 +127,7 @@ static bool handleMouseEventOnLine(
     long line = event.mouse().y - box.y_min + This->scrollPosition();
     if (line != lineIdx) return false;
     long column = event.mouse().x - box.x_min;
+    if (column < 0 || column > box.x_max) return false;
     if (instIdx && column < 8)
         This->toggleBreakpoint(*instIdx);
     else

@@ -55,6 +55,17 @@ struct DidStepSourceLine {
     bool* isReturn = nullptr;
 };
 
+struct WillStepOut {
+    svm::VirtualMachine& vm;
+    scdis::InstructionPointerOffset ipo;
+};
+
+struct DidStepOut {
+    svm::VirtualMachine& vm;
+    scdis::InstructionPointerOffset ipo;
+    bool* isDone;
+};
+
 /// Sent if UI must be reconstructed. For now this is only sent when a patient
 /// program is loaded.
 struct ReloadUIRequest {};
