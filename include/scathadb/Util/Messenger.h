@@ -9,7 +9,9 @@
 
 namespace sdb {
 
-class Messenger: private utl::buffered_messenger {
+class Messenger:
+    private utl::buffered_messenger,
+    public std::enable_shared_from_this<Messenger> {
 public:
     using utl::buffered_messenger::listen;
     using utl::buffered_messenger::listener_id_type;
