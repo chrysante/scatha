@@ -29,8 +29,8 @@ endfunction()
 
 if(SCATHA_DEV_MODE)
   if(NOT MSVC)
-    add_compile_options("$<$<CONFIG:Debug>:-fsanitize=address>")
-    add_link_options("$<$<CONFIG:Debug>:-fsanitize=address>")
+    #add_compile_options("$<$<CONFIG:Debug>:-fsanitize=address>")
+    #add_link_options("$<$<CONFIG:Debug>:-fsanitize=address>")
     add_compile_options("$<$<CONFIG:Debug>:-fsanitize=undefined>")
     add_link_options("$<$<CONFIG:Debug>:-fsanitize=undefined>")
     

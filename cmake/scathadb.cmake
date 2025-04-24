@@ -24,6 +24,7 @@ target_include_directories(scathadb-core
 
 set(scathadb_core_headers
     include/scathadb/Model/BreakpointManager.h
+    include/scathadb/Model/BreakpointPatcher.h
     include/scathadb/Model/Events.h
     include/scathadb/Model/Executor.h
     include/scathadb/Model/Model.h
@@ -37,6 +38,7 @@ set(scathadb_core_headers
 
 set(scathadb_core_sources
     src/scathadb/Model/BreakpointManager.cc
+    src/scathadb/Model/BreakpointPatcher.cc
     src/scathadb/Model/Events.cc
     src/scathadb/Model/Executor.cc
     src/scathadb/Model/Model.cc
