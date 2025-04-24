@@ -82,9 +82,6 @@ public:
     /// \Returns the messenger
     Messenger* messenger() const { return _messenger.get(); }
 
-    /// \Returns a locked read-only reference to the VM
-    Locked<svm::VirtualMachine const&> readVM() { return executor.readVM(); }
-
     /// \Returns a reference to the disassembled program
     scdis::Disassembly& disassembly() { return disasm; }
 
@@ -115,14 +112,13 @@ public:
 private:
     std::shared_ptr<Messenger> _messenger;
     bool _isProgramLoaded = false;
+    std::unique_ptr<CallbackStringStream> _stdout;
     std::filesystem::path _currentFilepath;
     std::vector<std::string> runArguments;
     scdis::Disassembly disasm;
     SourceDebugInfo sourceDbg;
     Executor executor;
     BreakpointManager breakpointManager;
-
-    std::unique_ptr<CallbackStringStream> _stdout;
 };
 
 } // namespace sdb

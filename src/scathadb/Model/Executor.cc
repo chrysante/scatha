@@ -22,6 +22,26 @@ using Impl = Executor::Impl;
 
 namespace {
 
+template <typename T, typename Lock = std::unique_lock<std::mutex>>
+struct Locked {
+    Locked(T obj, Lock&& lock): obj(obj), lock(std::move(lock)) {}
+
+    template <std::convertible_to<T> U>
+    Locked(Locked<U, Lock>&& rhs):
+        Locked(std::move(rhs.obj), std::move(rhs.lock)) {}
+
+    T const& get() const { return obj; }
+
+    void unlock() { lock.unlock(); }
+
+private:
+    template <typename, typename>
+    friend struct Locked;
+
+    T obj;
+    Lock lock;
+};
+
 template <typename E>
     requires std::is_enum_v<E>
 inline constexpr std::size_t EnumCount = magic_enum::enum_count<E>();
@@ -195,9 +215,12 @@ constexpr EnumArray<State, State (*)(Impl&)> Impl::states = { STATE(X) };
 
 Executor::Executor(std::shared_ptr<Messenger> messenger,
                    scdis::IpoIndexMap const& ipoIndexMap,
-                   SourceDebugInfo const& sourceDebugInfo):
+                   SourceDebugInfo const& sourceDebugInfo,
+                   std::istream* stdinStream, std::ostream* stdoutStream):
     impl(std::make_unique<Impl>(std::move(messenger), ipoIndexMap,
-                                sourceDebugInfo)) {}
+                                sourceDebugInfo)) {
+    impl->virtualMachine.setIOStreams(stdinStream, stdoutStream);
+}
 
 Executor::Executor(Executor&&) noexcept = default;
 
@@ -267,14 +290,14 @@ bool Executor::isIdle() const { return impl->state.load() == State::Idle; }
 
 bool Executor::isPaused() const { return impl->state.load() == State::Paused; }
 
-Locked<svm::VirtualMachine const&> Executor::readVM() { return impl->getVM(); }
-
-Locked<svm::VirtualMachine&> Executor::writeVM() { return impl->getVM(); }
-
-void Executor::loadProgram(std::vector<uint8_t> binary) {
+void Executor::loadProgram(std::vector<uint8_t> binary,
+                           std::filesystem::path runtimeLibDir) {
     impl->breakpointPatcher.setProgramData(binary);
     impl->binary = std::move(binary);
+    impl->getVM().get().setLibdir(std::move(runtimeLibDir));
 }
+
+void Executor::unloadProgram() { impl->getVM().get().reset(); }
 
 void Executor::setArguments(std::vector<std::string> arguments) {
     impl->runArguments = std::move(arguments);

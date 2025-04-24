@@ -19,19 +19,12 @@
 
 using namespace sdb;
 
-static decltype(auto) locked(auto& mutex, auto&& fn) {
-    std::lock_guard lock(mutex);
-    return fn();
-}
-
 Model::Model(std::shared_ptr<Messenger> messenger):
     _messenger(std::move(messenger)),
-    executor(_messenger, disasm.indexMap(), sourceDbg),
-    breakpointManager(_messenger, executor, disasm.indexMap(), sourceDbg),
     _stdout(std::make_unique<CallbackStringStream>(
-        [this] { _messenger->send_now(PatientConsoleOutputEvent{}); })) {
-    executor.writeVM().get().setIOStreams(nullptr, _stdout.get());
-}
+        [this] { _messenger->send_now(PatientConsoleOutputEvent{}); })),
+    executor(_messenger, disasm.indexMap(), sourceDbg, nullptr, _stdout.get()),
+    breakpointManager(_messenger, executor, disasm.indexMap(), sourceDbg) {}
 
 static scatha::DebugInfoMap readDebugInfo(std::filesystem::path inputPath) {
     inputPath += ".scdsym";
@@ -60,11 +53,10 @@ void Model::loadProgram(
     _currentFilepath.clear();
     executor.stopExecution();
     breakpointManager.clearAll();
-    auto vm = executor.writeVM();
-    vm.get().setLibdir(runtimeLibDir);
     disasm = scdis::disassemble(binary, debugInfo);
     sourceDbg = SourceDebugInfo::Make(debugInfo, sourceFileLoader);
-    executor.loadProgram(std::vector(binary.begin(), binary.end()));
+    executor.loadProgram(std::vector(binary.begin(), binary.end()),
+                         runtimeLibDir);
     _messenger->send_buffered(ReloadUIRequest{});
     _isProgramLoaded = true;
 }
@@ -73,8 +65,7 @@ void Model::unloadProgram() {
     executor.stopExecution();
     clearBreakpoints();
     _currentFilepath.clear();
-    auto vm = executor.writeVM();
-    vm.get().reset();
+    executor.unloadProgram();
     disasm = {};
     sourceDbg = {};
     breakpointManager.clearAll();

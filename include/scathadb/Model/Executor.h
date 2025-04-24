@@ -2,6 +2,7 @@
 #define SDB_MODEL_EXECUTOR_H_
 
 #include <concepts>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -16,26 +17,6 @@
 
 namespace sdb {
 
-template <typename T, typename Lock = std::unique_lock<std::mutex>>
-struct Locked {
-    Locked(T obj, Lock&& lock): obj(obj), lock(std::move(lock)) {}
-
-    template <std::convertible_to<T> U>
-    Locked(Locked<U, Lock>&& rhs):
-        Locked(std::move(rhs.obj), std::move(rhs.lock)) {}
-
-    T const& get() const { return obj; }
-
-    void unlock() { lock.unlock(); }
-
-private:
-    template <typename, typename>
-    friend struct Locked;
-
-    T obj;
-    Lock lock;
-};
-
 ///
 class Executor {
 public:
@@ -43,7 +24,8 @@ public:
 
     explicit Executor(std::shared_ptr<Messenger> messenger,
                       scdis::IpoIndexMap const& ipoIndexMap,
-                      SourceDebugInfo const& sourceDebugInfo);
+                      SourceDebugInfo const& sourceDebugInfo,
+                      std::istream* stdinStream, std::ostream* stdoutStream);
     Executor(Executor&&) noexcept;
     Executor& operator=(Executor&&) noexcept;
     ~Executor();
@@ -102,13 +84,11 @@ public:
     bool isPaused() const;
 
     ///
-    Locked<svm::VirtualMachine const&> readVM();
+    void loadProgram(std::vector<uint8_t> binary,
+                     std::filesystem::path runtimeLibDir);
 
     ///
-    Locked<svm::VirtualMachine&> writeVM();
-
-    ///
-    void loadProgram(std::vector<uint8_t> binary);
+    void unloadProgram();
 
     ///
     void setArguments(std::vector<std::string> arguments);
