@@ -17,6 +17,8 @@
 
 namespace sdb {
 
+class BreakpointPatcher;
+
 ///
 class Executor {
 public:
@@ -67,9 +69,6 @@ public:
     void popBreakpoint(scdis::InstructionPointerOffset ipo);
 
     ///
-    void applyBreakpoints();
-
-    ///
     void applyBreakpoints(svm::VirtualMachine& vm);
 
     /// @}
@@ -92,6 +91,9 @@ public:
 
     ///
     void setArguments(std::vector<std::string> arguments);
+
+    ///
+    void doOnVMThread(std::function<void(svm::VirtualMachine&)> workItem);
 
 private:
     std::unique_ptr<Impl> impl;

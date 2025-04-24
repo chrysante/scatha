@@ -351,13 +351,6 @@ void VMImpl::execute() {
 
         // Cache the interrupt flags address into a local variable
         auto& interruptFlag = this->interruptFlag;
-        if constexpr (Mode == ExecutionMode::Interruptible)
-            interruptFlag.store(false);
-
-#define ON_INTERRUPT()                                                         \
-    do {                                                                       \
-        throwException<InterruptException>();                                  \
-    } while (0)
 
 #define TERMINATE_EXECUTION()                                                  \
     do {                                                                       \
@@ -385,13 +378,18 @@ void VMImpl::execute() {
 #define INST_END(InstName)                                                     \
     iptr += ExecCodeSize<OpCode::InstName>;                                    \
     if constexpr (Mode == ExecutionMode::Interruptible)                        \
-        if (interruptFlag.load()) ON_INTERRUPT();                              \
+        if (interruptFlag.load(std::memory_order::relaxed))                    \
+            goto on_interrupt_block;                                           \
     goto* jumpTable[*iptr];
 
 #include "ExecutionInstDef.h"
 
 opcode_block_invalid:
         throwException<InvalidOpcodeError>((u64)*iptr);
+
+on_interrupt_block:
+        interruptFlag.store(false, std::memory_order::relaxed);
+        throwException<InterruptException>();
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
@@ -447,10 +445,6 @@ void VMImpl::stepExecution() {
     auto* const opPtr = iptr + sizeof(OpCode);
     size_t codeOffset;
     switch ((u8)opcode) {
-#define ON_INTERRUPT()                                                         \
-    do {                                                                       \
-        throwException<InterruptException>();                                  \
-    } while (0)
 #define INST_BEGIN(InstName)                                                   \
     case (u8)OpCode::InstName:                                                 \
         codeOffset = ExecCodeSize<OpCode::InstName>;

@@ -68,17 +68,13 @@ INST_BEGIN(cbltn) {
     catch (ExitException const&) {
         TERMINATE_EXECUTION();
     }
-    catch (RuntimeException const& e) {
-        if (std::holds_alternative<InterruptException>(e.get())) ON_INTERRUPT();
-        throw;
-    }
 }
 INST_END(cbltn)
 
 INST_BEGIN(terminate) { TERMINATE_EXECUTION(); }
 INST_END(terminate)
 
-INST_BEGIN(trap) { ON_INTERRUPT(); }
+INST_BEGIN(trap) { throwException<InterruptException>(); }
 INST_END(trap)
 
 /// ## Loads and storeRegs
@@ -669,5 +665,4 @@ INST_END(f64tou64)
 
 #undef INST_BEGIN
 #undef INST_END
-#undef ON_INTERRUPT
 #undef TERMINATE_EXECUTION

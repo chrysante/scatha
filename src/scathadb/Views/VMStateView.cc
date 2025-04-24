@@ -39,7 +39,7 @@ struct RegView: ScrollBase, Transceiver {
     ftxui::Element OnRender() override {
         if (!model->isPaused()) return ftxui::text("") | ftxui::flex;
         svm::ExecutionFrame execFrame{};
-        send_now(DoInterruptedOnVM{ [&](svm::VirtualMachine const& vm) {
+        send_now(DoOnVMThread{ [&](svm::VirtualMachine const& vm) {
             auto regs = vm.registerData();
             values.assign(regs.begin(),
                           std::max(regs.end(), regs.begin() + maxReg));
@@ -67,7 +67,7 @@ ftxui::Element RegEntry::OnRender() {
     auto ptr = std::bit_cast<svm::VirtualPointer>(value);
     auto derefRange = [&] {
         ptrdiff_t derefRange = -1;
-        parent->send_now(DoInterruptedOnVM{ [&](svm::VirtualMachine const& vm) {
+        parent->send_now(DoOnVMThread{ [&](svm::VirtualMachine const& vm) {
             derefRange = vm.validPtrRange(ptr);
         } });
         return derefRange;
@@ -94,7 +94,7 @@ static ftxui::Component CompareFlagsView(Model* model) {
             svm::CompareFlags flags{};
             if (!active) return flags;
             model->messenger()->send_now(
-                DoInterruptedOnVM{ [&](svm::VirtualMachine const& vm) {
+                DoOnVMThread{ [&](svm::VirtualMachine const& vm) {
                 flags = vm.getCompareFlags();
             } });
             return flags;

@@ -123,6 +123,16 @@ static sdb::Model makeModel(std::shared_ptr<sdb::Messenger> messenger,
     return model;
 }
 
+static sdb::SourceLocation getSourceLoc(sdb::Model const& model,
+                                        scdis::InstructionPointerOffset ipo) {
+    return model.sourceDebug().sourceMap().toSourceLoc(ipo).value();
+}
+
+static uint32_t getLine(sdb::Model const& model,
+                        scdis::InstructionPointerOffset ipo) {
+    return getSourceLoc(model, ipo).line.line;
+}
+
 TEST_CASE("Print test", "[model]") {
     auto [notifier, messenger] = makeComm();
     auto source = R"(
@@ -199,33 +209,29 @@ TEST_CASE("Multifile breakpoints", "[model]") {
     model.startExecution();
     auto state = notifier->wait(&CommState::haveBreakEvent);
     CHECK(state.breakEvent->state == sdb::BreakState::Paused);
-    auto sourceLoc =
-        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
-    CHECK(sourceLoc.value().line == sdb::SourceLine{ .file = 1, .line = 3 });
+    auto sourceLoc = getSourceLoc(model, state.breakEvent->ipo);
+    CHECK(sourceLoc.line == sdb::SourceLine{ .file = 1, .line = 3 });
     CHECK(model.standardout().str().empty());
 
     model.toggleExecution();
     state = notifier->wait(&CommState::haveBreakEvent);
     CHECK(state.breakEvent->state == sdb::BreakState::Paused);
-    sourceLoc =
-        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
-    CHECK(sourceLoc.value().line == sdb::SourceLine{ .file = 0, .line = 4 });
+    sourceLoc = getSourceLoc(model, state.breakEvent->ipo);
+    CHECK(sourceLoc.line == sdb::SourceLine{ .file = 0, .line = 4 });
     CHECK(model.standardout().str() == "Start\n");
 
     model.toggleExecution();
     state = notifier->wait(&CommState::haveBreakEvent);
     CHECK(state.breakEvent->state == sdb::BreakState::Paused);
-    sourceLoc =
-        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
-    CHECK(sourceLoc.value().line == sdb::SourceLine{ .file = 1, .line = 3 });
+    sourceLoc = getSourceLoc(model, state.breakEvent->ipo);
+    CHECK(sourceLoc.line == sdb::SourceLine{ .file = 1, .line = 3 });
     CHECK(model.standardout().str() == "Start\n");
 
     model.toggleExecution();
     state = notifier->wait(&CommState::haveBreakEvent);
     CHECK(state.breakEvent->state == sdb::BreakState::Paused);
-    sourceLoc =
-        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
-    CHECK(sourceLoc.value().line == sdb::SourceLine{ .file = 1, .line = 3 });
+    sourceLoc = getSourceLoc(model, state.breakEvent->ipo);
+    CHECK(sourceLoc.line == sdb::SourceLine{ .file = 1, .line = 3 });
     CHECK(model.standardout().str() == "Start\nContinue\n");
 
     model.toggleExecution();
@@ -263,9 +269,7 @@ TEST_CASE("Live patching breakpoints", "[model]") {
     model.toggleSourceBreakpoint(callLine);
     auto state = notifier->wait(&CommState::haveBreakEvent);
     CHECK(state.breakEvent->state == sdb::BreakState::Paused);
-    auto sourceLoc =
-        model.sourceDebug().sourceMap().toSourceLoc(state.breakEvent->ipo);
-    CHECK(sourceLoc.value().line.line == 5);
+    CHECK(getLine(model, state.breakEvent->ipo) == 5);
 
     model.toggleSourceBreakpoint(callLine);
     model.toggleExecution();
@@ -299,4 +303,107 @@ TEST_CASE("Stepping out of root function", "[model]") {
     model.stopExecution();
     auto state = notifier->wait(&CommState::finished);
     CHECK(state.killed);
+}
+
+TEST_CASE("Recursive line stepping test", "[model]") {
+    auto [notifier, messenger] = makeComm();
+    auto source = R"(
+/*  2 */ fn rec(recurse: bool) -> void {
+/*  3 */     if (!recurse) { return; }
+/*  4 */     rec(false);
+/*  5 */     rec(false);
+/*  6 */     rec(false);
+/*  7 */ }
+/*  8 */ fn main() {
+/*  9 */     rec(true);
+/* 10 */ }
+)";
+    auto model = makeModel(messenger, { { "test-file.sc", source } },
+                           scatha::Asm::LinkerOptions{ .searchHost = true });
+    model.toggleSourceBreakpoint({ .file = 0, .line = 4 });
+
+    model.startExecution();
+    auto state = notifier->wait(&CommState::haveBreakEvent);
+    REQUIRE(getLine(model, state.breakEvent->ipo) == 4);
+    model.toggleSourceBreakpoint({ .file = 0, .line = 4 });
+
+    model.stepSourceLine();
+    state = notifier->wait(&CommState::haveBreakEvent);
+    REQUIRE(getLine(model, state.breakEvent->ipo) == 5);
+
+    model.toggleSourceBreakpoint({ .file = 0, .line = 3 });
+    model.stepSourceLine();
+    state = notifier->wait(&CommState::haveBreakEvent);
+    REQUIRE(getLine(model, state.breakEvent->ipo) == 3);
+    model.toggleSourceBreakpoint({ .file = 0, .line = 3 });
+
+    model.stepSourceLine();
+    state = notifier->wait(&CommState::haveBreakEvent);
+    REQUIRE(getLine(model, state.breakEvent->ipo) == 6);
+
+    model.toggleExecution();
+    state = notifier->wait(&CommState::finished);
+    CHECK(state.terminated);
+}
+
+TEST_CASE("Recursive stepping out test", "[model]") {
+    auto [notifier, messenger] = makeComm();
+    auto source = R"(
+/*  2 */ 
+/*  3 */ fn rec(n: int) -> void {
+/*  4 */     if n > 0 { 
+/*  5 */         rec(n - 1); 
+/*  6 */         __builtin_puti64(n);    
+/*  7 */     }
+/*  8 */ }
+/*  9 */ fn main() {
+/* 10 */     rec(3);
+/* 11 */     return;
+/* 12 */ }
+)";
+    auto model = makeModel(messenger, { { "test-file.sc", source } },
+                           scatha::Asm::LinkerOptions{ .searchHost = true });
+
+    SECTION("Step out of one layer of recursion") {
+        model.toggleSourceBreakpoint({ .file = 0, .line = 5 });
+        model.startExecution();
+        auto state = notifier->wait(&CommState::haveBreakEvent);
+        REQUIRE(getLine(model, state.breakEvent->ipo) == 5);
+        CHECK(model.standardout().str() == "");
+        model.clearBreakpoints();
+
+        model.stepOut();
+        state = notifier->wait(&CommState::haveBreakEvent);
+        REQUIRE(getLine(model, state.breakEvent->ipo) == 11);
+        CHECK(model.standardout().str() == "123");
+
+        model.stepOut();
+        state = notifier->wait(&CommState::finished);
+        CHECK(state.terminated);
+    }
+
+    SECTION("Step out of three layers of recursion") {
+        model.toggleSourceBreakpoint({ .file = 0, .line = 5 });
+        for (int i = 0; i < 3; ++i) {
+            i == 0 ? model.startExecution() : model.toggleExecution();
+            auto state = notifier->wait(&CommState::haveBreakEvent);
+            REQUIRE(getLine(model, state.breakEvent->ipo) == 5);
+        }
+        model.clearBreakpoints();
+
+        model.stepOut();
+        auto state = notifier->wait(&CommState::haveBreakEvent);
+        REQUIRE(getLine(model, state.breakEvent->ipo) == 6);
+        CHECK(model.standardout().str() == "1");
+
+        model.stepOut();
+        state = notifier->wait(&CommState::haveBreakEvent);
+        REQUIRE(getLine(model, state.breakEvent->ipo) == 6);
+        CHECK(model.standardout().str() == "12");
+
+        model.stepOut();
+        state = notifier->wait(&CommState::haveBreakEvent);
+        REQUIRE(getLine(model, state.breakEvent->ipo) == 11);
+        CHECK(model.standardout().str() == "123");
+    }
 }

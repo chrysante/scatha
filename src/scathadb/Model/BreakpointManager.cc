@@ -38,11 +38,14 @@ void BreakpointManager::toggleInstBreakpoint(size_t instIndex) {
     auto [itr, success] = instBreakpointSet.insert(instIndex);
     if (!success) instBreakpointSet.erase(itr);
     auto ipo = ipoIndexMap.indexToIpo(instIndex);
-    if (success)
-        executor.pushBreakpoint(ipo, true);
-    else
-        executor.popBreakpoint(ipo);
-    executor.applyBreakpoints();
+    executor.doOnVMThread(
+        [this, success = success, ipo](svm::VirtualMachine& vm) {
+        if (success)
+            executor.pushBreakpoint(ipo, true);
+        else
+            executor.popBreakpoint(ipo);
+        executor.applyBreakpoints(vm);
+    });
 }
 
 bool BreakpointManager::hasInstBreakpoint(size_t instIndex) const {
@@ -54,11 +57,14 @@ bool BreakpointManager::toggleSourceLineBreakpoint(SourceLine line) {
     if (ipos.empty()) return false;
     auto [itr, success] = sourceLineBreakpointSet.insert(line);
     if (!success) sourceLineBreakpointSet.erase(itr);
-    if (success)
-        executor.pushBreakpoint(ipos.front(), true);
-    else
-        executor.popBreakpoint(ipos.front());
-    executor.applyBreakpoints();
+    executor.doOnVMThread(
+        [this, success = success, ipo = ipos.front()](svm::VirtualMachine& vm) {
+        if (success)
+            executor.pushBreakpoint(ipo, true);
+        else
+            executor.popBreakpoint(ipo);
+        executor.applyBreakpoints(vm);
+    });
     return true;
 }
 
@@ -67,15 +73,20 @@ bool BreakpointManager::hasSourceLineBreakpoint(SourceLine line) const {
 }
 
 void BreakpointManager::clearAll() {
-    for (auto instIndex: instBreakpointSet) {
-        auto ipo = ipoIndexMap.indexToIpo(instIndex);
-        executor.popBreakpoint(ipo);
-    }
+    executor.doOnVMThread(
+        [this, instBreakpointSet = std::move(instBreakpointSet),
+         sourceLineBreakpointSet =
+             std::move(sourceLineBreakpointSet)](svm::VirtualMachine& vm) {
+        for (auto instIndex: instBreakpointSet) {
+            auto ipo = ipoIndexMap.indexToIpo(instIndex);
+            executor.popBreakpoint(ipo);
+        }
+        for (auto sourceLine: sourceLineBreakpointSet) {
+            auto ipo = sourceDebugInfo.sourceMap().toIpos(sourceLine).front();
+            executor.popBreakpoint(ipo);
+        }
+        executor.applyBreakpoints(vm);
+    });
     instBreakpointSet.clear();
-    for (auto sourceLine: sourceLineBreakpointSet) {
-        auto ipo = sourceDebugInfo.sourceMap().toIpos(sourceLine).front();
-        executor.popBreakpoint(ipo);
-    }
     sourceLineBreakpointSet.clear();
-    executor.applyBreakpoints();
 }

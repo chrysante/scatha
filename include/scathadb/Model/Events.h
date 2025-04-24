@@ -19,7 +19,7 @@ struct WillBeginExecution {
 
 /// Sends an action to the executor to be immediately applied on the interrupted
 /// VM
-struct DoInterruptedOnVM {
+struct DoOnVMThread {
     std::function<void(svm::VirtualMachine&)> callback;
 };
 
