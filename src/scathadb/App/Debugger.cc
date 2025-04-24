@@ -93,11 +93,11 @@ auto const CycleMainViewCmd = Command::Add({
     .buttonLabel = [](Debugger const& db) {
         switch (db.mainViewIndex()) {
         case 0:
-            return "Src";
-        case 1:
             return "S/A";
-        case 2:
+        case 1:
             return "Asm";
+        case 2:
+            return "Src";
         default:
             return "???";
         }
