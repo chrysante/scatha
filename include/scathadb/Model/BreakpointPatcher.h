@@ -9,6 +9,8 @@
 #include <utl/hashtable.hpp>
 #include <utl/stack.hpp>
 
+#include <scathadb/Util/TinyBoolStack.h>
+
 namespace sdb {
 
 /// Low-level breakpoint installation manager.
@@ -47,7 +49,7 @@ private:
     void removeBreakpoint(scdis::InstructionPointerOffset ipo);
 
     utl::hashset<scdis::InstructionPointerOffset> insertQueue, removalQueue;
-    utl::hashmap<scdis::InstructionPointerOffset, utl::stack<bool>> stackMap;
+    utl::hashmap<scdis::InstructionPointerOffset, TinyBoolStack<>> stackMap;
     std::vector<uint8_t> binary;
 };
 
