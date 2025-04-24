@@ -55,9 +55,13 @@ struct DidStepSourceLine {
     bool* isReturn = nullptr;
 };
 
+///
 struct WillStepOut {
     svm::VirtualMachine& vm;
     scdis::InstructionPointerOffset ipo;
+    // Must be set to false by the breakpoint manager if stepping out is not
+    // possible (because we are the root function)
+    bool* possible;
 };
 
 struct DidStepOut {

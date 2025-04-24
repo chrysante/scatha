@@ -274,3 +274,29 @@ TEST_CASE("Live patching breakpoints", "[model]") {
     state = notifier->wait(&CommState::finished);
     CHECK(state.killed);
 }
+
+TEST_CASE("Stepping out of root function", "[model]") {
+    auto [notifier, messenger] = makeComm();
+    auto source = R"(
+/* 2 */ extern "C" fn live_patching_host_callback() -> void;
+/* 3 */ fn main() {
+/* 4 */     while true { live_patching_host_callback(); }
+/* 5 */ }
+)";
+    auto model = makeModel(messenger, { { "test-file.sc", source } },
+                           scatha::Asm::LinkerOptions{ .searchHost = true });
+    std::atomic_bool host_callback_called = false;
+    g_host_callback_called = &host_callback_called;
+    model.startExecution();
+    waitWithTimeout([&] { return host_callback_called.load(); });
+    model.toggleExecution();
+    (void)notifier->wait(&CommState::haveBreakEvent);
+    host_callback_called.store(false);
+    model.stepOut();
+    waitWithTimeout([&] { return host_callback_called.load(); });
+    model.toggleExecution();
+    (void)notifier->wait(&CommState::haveBreakEvent);
+    model.stopExecution();
+    auto state = notifier->wait(&CommState::finished);
+    CHECK(state.killed);
+}

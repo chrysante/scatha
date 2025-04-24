@@ -128,7 +128,10 @@ BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
     });
     listen([this](WillStepOut event) {
         auto frame = event.vm.getCurrentExecFrame();
-        if (frame.regPtr - frame.bottomReg < 3) return;
+        if (frame.regPtr - frame.bottomReg < 3) {
+            *event.possible = false;
+            return;
+        }
         auto* retAddr = reinterpret_cast<uint8_t*>(frame.regPtr[-1]);
         stepOutStackPtr = frame.regPtr[-3];
         scdis::InstructionPointerOffset dest(

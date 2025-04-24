@@ -437,10 +437,20 @@ State Impl::stepSourceLine(svm::VirtualMachine& vm) {
 
 State Impl::stepOut(svm::VirtualMachine& vm) {
     InstructionPointerOffset const ipo(vm.instructionPointerOffset());
-    send_now(WillStepOut{ vm, ipo });
-    stepState = StepState::Out;
-    isContinue = true;
-    return State::RunningIndef;
+    bool possible = true;
+    send_now(WillStepOut{ vm, ipo, &possible });
+    if (possible) {
+        stepState = StepState::Out;
+        isContinue = true;
+        return State::RunningIndef;
+    }
+    else {
+        // If stepping out is not possible, because we are in the root function,
+        // we just continue normally
+        stepState = StepState::None;
+        isContinue = true;
+        return State::RunningIndef;
+    }
 }
 
 State Impl::doPaused() {
