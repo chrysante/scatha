@@ -255,7 +255,8 @@ void Executor::applyBreakpoints() {
 }
 
 void Executor::applyBreakpoints(svm::VirtualMachine& vm) {
-    impl->breakpointPatcher.patchInstructionStream(vm.getBinaryPointer());
+    if (auto* binary = vm.getBinaryPointer())
+        impl->breakpointPatcher.patchInstructionStream(binary);
 }
 
 bool Executor::isRunning() const {
@@ -295,9 +296,6 @@ Impl::Impl(std::shared_ptr<Messenger> messenger,
             lock.unlock();
             virtualMachine.interruptExecution();
         }
-    });
-    listen([this](IsExecIdle event) {
-        *event.value = state.load() == State::Idle;
     });
     thread = std::thread(&Impl::threadMain, this);
 }

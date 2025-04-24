@@ -101,7 +101,7 @@ struct SourceViewBase: FileViewBase, Transceiver {
         }
     }
 
-    void clearBreakpoints() override {}
+    void clearBreakpoints() override { model->clearBreakpoints(); }
 
     void reload() { reloadImpl(std::nullopt); }
 

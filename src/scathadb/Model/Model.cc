@@ -59,6 +59,7 @@ void Model::loadProgram(
     utl::function_view<SourceFile(std::filesystem::path)> sourceFileLoader) {
     _currentFilepath.clear();
     executor.stopExecution();
+    breakpointManager.clearAll();
     auto vm = executor.writeVM();
     vm.get().setLibdir(runtimeLibDir);
     disasm = scdis::disassemble(binary, debugInfo);

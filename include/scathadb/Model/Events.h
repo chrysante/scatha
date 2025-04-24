@@ -23,13 +23,6 @@ struct DoInterruptedOnVM {
     std::function<void(svm::VirtualMachine&)> callback;
 };
 
-/// The executor listens to these messages and sets `*value` to true if it's
-/// idle
-/// TODO: Evaluate if we need this
-struct IsExecIdle {
-    bool* value;
-};
-
 /// Sent by the executor after the patient process terminated execution
 struct ProcessTerminated {};
 

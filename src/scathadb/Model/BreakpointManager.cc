@@ -34,16 +34,9 @@ BreakpointManager::BreakpointManager(std::shared_ptr<Messenger> messenger,
     });
 }
 
-static bool isExecIdle(Transceiver const& emitter) {
-    bool isIdle = true;
-    emitter.send_now(IsExecIdle{ &isIdle });
-    return isIdle;
-}
-
 void BreakpointManager::toggleInstBreakpoint(size_t instIndex) {
     auto [itr, success] = instBreakpointSet.insert(instIndex);
     if (!success) instBreakpointSet.erase(itr);
-    if (isExecIdle(*this)) return;
     auto ipo = ipoIndexMap.indexToIpo(instIndex);
     if (success)
         executor.pushBreakpoint(ipo, true);
@@ -61,7 +54,6 @@ bool BreakpointManager::toggleSourceLineBreakpoint(SourceLine line) {
     if (ipos.empty()) return false;
     auto [itr, success] = sourceLineBreakpointSet.insert(line);
     if (!success) sourceLineBreakpointSet.erase(itr);
-    if (isExecIdle(*this)) return true;
     if (success)
         executor.pushBreakpoint(ipos.front(), true);
     else
