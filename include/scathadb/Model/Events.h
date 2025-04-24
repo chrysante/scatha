@@ -30,46 +30,6 @@ struct IsExecIdle {
     bool* value;
 };
 
-/// Sent on the executor thread before stepping an instruction
-struct WillStepInstruction {
-    svm::VirtualMachine& vm;
-    scdis::InstructionPointerOffset ipo;
-};
-
-/// Sent on the executor thread after stepping an instruction
-struct DidStepInstruction {
-    svm::VirtualMachine& vm;
-    scdis::InstructionPointerOffset ipo;
-};
-
-/// Sent on the executor thread before stepping a source line
-struct WillStepSourceLine {
-    svm::VirtualMachine& vm;
-    scdis::InstructionPointerOffset ipo;
-};
-
-///
-struct DidStepSourceLine {
-    svm::VirtualMachine& vm;
-    scdis::InstructionPointerOffset ipo;
-    bool* isReturn = nullptr;
-};
-
-///
-struct WillStepOut {
-    svm::VirtualMachine& vm;
-    scdis::InstructionPointerOffset ipo;
-    // Must be set to false by the breakpoint manager if stepping out is not
-    // possible (because we are the root function)
-    bool* possible;
-};
-
-struct DidStepOut {
-    svm::VirtualMachine& vm;
-    scdis::InstructionPointerOffset ipo;
-    bool* isDone;
-};
-
 /// Sent by the executor after the patient process terminated execution
 struct ProcessTerminated {};
 

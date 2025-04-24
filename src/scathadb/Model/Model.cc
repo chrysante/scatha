@@ -26,8 +26,8 @@ static decltype(auto) locked(auto& mutex, auto&& fn) {
 
 Model::Model(std::shared_ptr<Messenger> messenger):
     _messenger(std::move(messenger)),
-    executor(_messenger),
-    breakpointManager(_messenger, disasm.indexMap(), sourceDbg),
+    executor(_messenger, disasm.indexMap(), sourceDbg),
+    breakpointManager(_messenger, executor, disasm.indexMap(), sourceDbg),
     _stdout(std::make_unique<CallbackStringStream>(
         [this] { _messenger->send_now(PatientConsoleOutputEvent{}); })) {
     executor.writeVM().get().setIOStreams(nullptr, _stdout.get());
@@ -63,8 +63,7 @@ void Model::loadProgram(
     vm.get().setLibdir(runtimeLibDir);
     disasm = scdis::disassemble(binary, debugInfo);
     sourceDbg = SourceDebugInfo::Make(debugInfo, sourceFileLoader);
-    executor.setBinary(std::vector(binary.begin(), binary.end()));
-    breakpointManager.setProgramData(binary);
+    executor.loadProgram(std::vector(binary.begin(), binary.end()));
     _messenger->send_buffered(ReloadUIRequest{});
     _isProgramLoaded = true;
 }

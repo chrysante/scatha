@@ -117,9 +117,9 @@ private:
     bool _isProgramLoaded = false;
     std::filesystem::path _currentFilepath;
     std::vector<std::string> runArguments;
-    Executor executor;
     scdis::Disassembly disasm;
     SourceDebugInfo sourceDbg;
+    Executor executor;
     BreakpointManager breakpointManager;
 
     std::unique_ptr<CallbackStringStream> _stdout;

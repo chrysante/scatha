@@ -16,10 +16,13 @@
 
 namespace sdb {
 
+class Executor;
+
 /// High-level breakpoint manager
 class BreakpointManager: Transceiver {
 public:
     explicit BreakpointManager(std::shared_ptr<Messenger> messenger,
+                               Executor& executor,
                                scdis::IpoIndexMap const& ipoIndexMap,
                                SourceDebugInfo const& sourceDebugInfo);
 
@@ -39,19 +42,12 @@ public:
     /// Removes all installed breakpoints
     void clearAll();
 
-    ///
-    void setProgramData(std::span<uint8_t const> progData);
-
 private:
-    void install();
-
     scdis::IpoIndexMap const& ipoIndexMap;
     SourceDebugInfo const& sourceDebugInfo;
     utl::hashset<size_t> instBreakpointSet;
     utl::hashset<SourceLine> sourceLineBreakpointSet;
-    BreakpointPatcher patcher;
-    std::vector<scdis::InstructionPointerOffset> steppingBreakpoints;
-    uint64_t stepOutStackPtr = 0;
+    Executor& executor;
 };
 
 } // namespace sdb

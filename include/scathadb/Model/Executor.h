@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include <scdis/Disassembly.h>
 #include <svm/VirtualMachine.h>
 
 #include <scathadb/Model/SourceDebugInfo.h>
@@ -40,10 +41,15 @@ class Executor {
 public:
     struct Impl;
 
-    explicit Executor(std::shared_ptr<Messenger> messenger);
+    explicit Executor(std::shared_ptr<Messenger> messenger,
+                      scdis::IpoIndexMap const& ipoIndexMap,
+                      SourceDebugInfo const& sourceDebugInfo);
     Executor(Executor&&) noexcept;
     Executor& operator=(Executor&&) noexcept;
     ~Executor();
+
+    /// Command interface
+    /// @{
 
     /// Starts execution of the loaded program
     void startExecution();
@@ -67,6 +73,25 @@ public:
     /// order.
     void shutdown();
 
+    /// @}
+
+    /// Low-level breakpoint interface
+    /// @{
+
+    ///
+    void pushBreakpoint(scdis::InstructionPointerOffset ipo, bool value);
+
+    ///
+    void popBreakpoint(scdis::InstructionPointerOffset ipo);
+
+    ///
+    void applyBreakpoints();
+
+    ///
+    void applyBreakpoints(svm::VirtualMachine& vm);
+
+    /// @}
+
     /// \Returns `true` if a program is currently running
     bool isRunning() const;
 
@@ -83,7 +108,7 @@ public:
     Locked<svm::VirtualMachine&> writeVM();
 
     ///
-    void setBinary(std::vector<uint8_t> binary);
+    void loadProgram(std::vector<uint8_t> binary);
 
     ///
     void setArguments(std::vector<std::string> arguments);

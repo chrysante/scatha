@@ -12,6 +12,7 @@
 #include <svm/Util.h>
 #include <utl/thread.hpp>
 
+#include "Model/BreakpointPatcher.h"
 #include "Model/Events.h"
 
 using namespace sdb;
@@ -114,7 +115,9 @@ private:
 } // namespace
 
 struct Executor::Impl: Transceiver {
-    explicit Impl(std::shared_ptr<Messenger> messenger);
+    explicit Impl(std::shared_ptr<Messenger> messenger,
+                  scdis::IpoIndexMap const& ipoIndexMap,
+                  SourceDebugInfo const& sourceDebugInfo);
 
     void threadMain();
 
@@ -133,10 +136,20 @@ struct Executor::Impl: Transceiver {
 
     Locked<svm::VirtualMachine&> initVMForExecution();
 
+    void willStepInstruction(svm::VirtualMachine& vm,
+                             InstructionPointerOffset ipo);
+    void didStepInstruction(svm::VirtualMachine& vm,
+                            InstructionPointerOffset ipo);
     State stepInstruction(svm::VirtualMachine& vm, bool sendUIEncounter = true);
 
+    bool willStepSourceLine(svm::VirtualMachine& vm,
+                            InstructionPointerOffset ipo);
+    void didStepSourceLine(svm::VirtualMachine& vm,
+                           InstructionPointerOffset ipo, bool& isReturn);
     State stepSourceLine(svm::VirtualMachine& vm);
 
+    bool willStepOut(svm::VirtualMachine& vm);
+    bool didStepOut(svm::VirtualMachine& vm, InstructionPointerOffset ipo);
     State stepOut(svm::VirtualMachine& vm);
 
     State handleRuntimeException(svm::VirtualMachine& vm,
@@ -155,13 +168,19 @@ struct Executor::Impl: Transceiver {
 
     static const EnumArray<State, State (*)(Impl&)> states;
 
+    scdis::IpoIndexMap const& ipoIndexMap;
+    SourceDebugInfo const& sourceDebugInfo;
+
     std::thread thread;
     std::atomic<State> state = State::Idle;
     CommandQueue commandQueue;
     std::mutex vmMutex;
     svm::VirtualMachine virtualMachine;
+    BreakpointPatcher breakpointPatcher;
     std::vector<uint8_t> binary;
     std::vector<std::string> runArguments;
+    uint64_t stepOutStackPtr = 0;
+    std::vector<InstructionPointerOffset> steppingBreakpoints;
     std::function<void(svm::VirtualMachine&)> interruptCallback;
     std::mutex interruptCallbackMutex;
     bool isContinue = false;
@@ -174,8 +193,11 @@ struct Executor::Impl: Transceiver {
 constexpr EnumArray<State, State (*)(Impl&)> Impl::states = { STATE(X) };
 #undef X
 
-Executor::Executor(std::shared_ptr<Messenger> messenger):
-    impl(std::make_unique<Impl>(std::move(messenger))) {}
+Executor::Executor(std::shared_ptr<Messenger> messenger,
+                   scdis::IpoIndexMap const& ipoIndexMap,
+                   SourceDebugInfo const& sourceDebugInfo):
+    impl(std::make_unique<Impl>(std::move(messenger), ipoIndexMap,
+                                sourceDebugInfo)) {}
 
 Executor::Executor(Executor&&) noexcept = default;
 
@@ -211,6 +233,31 @@ void Executor::shutdown() {
     }
 }
 
+void Executor::pushBreakpoint(InstructionPointerOffset ipo, bool value) {
+    impl->breakpointPatcher.pushBreakpoint(ipo, value);
+}
+
+void Executor::popBreakpoint(InstructionPointerOffset ipo) {
+    impl->breakpointPatcher.popBreakpoint(ipo);
+}
+
+void Executor::applyBreakpoints() {
+    auto apply = [this](svm::VirtualMachine& vm) { applyBreakpoints(vm); };
+    if (impl->state.load() != State::RunningIndef) {
+        apply(impl->getVM().get());
+    }
+    else {
+        std::unique_lock lock(impl->interruptCallbackMutex);
+        impl->interruptCallback = apply;
+        lock.unlock();
+        impl->virtualMachine.interruptExecution();
+    }
+}
+
+void Executor::applyBreakpoints(svm::VirtualMachine& vm) {
+    impl->breakpointPatcher.patchInstructionStream(vm.getBinaryPointer());
+}
+
 bool Executor::isRunning() const {
     return impl->state.load() == State::RunningIndef;
 }
@@ -223,7 +270,8 @@ Locked<svm::VirtualMachine const&> Executor::readVM() { return impl->getVM(); }
 
 Locked<svm::VirtualMachine&> Executor::writeVM() { return impl->getVM(); }
 
-void Executor::setBinary(std::vector<uint8_t> binary) {
+void Executor::loadProgram(std::vector<uint8_t> binary) {
+    impl->breakpointPatcher.setProgramData(binary);
     impl->binary = std::move(binary);
 }
 
@@ -231,8 +279,12 @@ void Executor::setArguments(std::vector<std::string> arguments) {
     impl->runArguments = std::move(arguments);
 }
 
-Impl::Impl(std::shared_ptr<Messenger> messenger):
-    Transceiver(std::move(messenger)) {
+Impl::Impl(std::shared_ptr<Messenger> messenger,
+           scdis::IpoIndexMap const& ipoIndexMap,
+           SourceDebugInfo const& sourceDebugInfo):
+    Transceiver(std::move(messenger)),
+    ipoIndexMap(ipoIndexMap),
+    sourceDebugInfo(sourceDebugInfo) {
     listen([this](DoInterruptedOnVM const& event) {
         if (state.load() != State::RunningIndef) {
             event.callback(getVM().get());
@@ -273,6 +325,7 @@ State Impl::doIdle() {
             stepState = StepState::None;
             auto vm = initVMForExecution();
             auto arg = svm::setupArguments(vm.get(), runArguments);
+            breakpointPatcher.removeAll();
             send_now(WillBeginExecution{ vm.get() });
             vm.get().beginExecution(arg);
             return State::RunningIndef;
@@ -327,14 +380,12 @@ State Impl::handleRuntimeException(svm::VirtualMachine& vm,
     switch (std::exchange(stepState, StepState::None)) {
     case StepState::Line: {
         bool isReturn = false;
-        send_now(DidStepSourceLine{ vm, ipo, &isReturn });
+        didStepSourceLine(vm, ipo, isReturn);
         if (isReturn) return stepInstruction(vm);
         break;
     }
     case StepState::Out: {
-        bool done = false;
-        send_now(DidStepOut{ vm, ipo, &done });
-        if (!done) {
+        if (!didStepOut(vm, ipo)) {
             stepState = StepState::Out;
             return State::RunningIndef;
         }
@@ -401,19 +452,31 @@ State Impl::doRunningIndef() {
     }
 }
 
+void Impl::willStepInstruction(svm::VirtualMachine& vm,
+                               InstructionPointerOffset ipo) {
+    breakpointPatcher.pushBreakpoint(ipo, false);
+    breakpointPatcher.patchInstructionStream(vm.getBinaryPointer());
+}
+
+void Impl::didStepInstruction(svm::VirtualMachine& vm,
+                              InstructionPointerOffset ipo) {
+    breakpointPatcher.popBreakpoint(ipo);
+    breakpointPatcher.patchInstructionStream(vm.getBinaryPointer());
+}
+
 State Impl::stepInstruction(svm::VirtualMachine& vm, bool sendUIEncounter) {
     InstructionPointerOffset const ipo(vm.instructionPointerOffset());
-    send_now(WillStepInstruction{ vm, ipo });
+    willStepInstruction(vm, ipo);
     try {
         vm.stepExecution();
     }
     catch (svm::RuntimeException const& e) {
         send_buffered(BreakEvent{ ipo, BreakState::Error, e.get() });
         vm.setInstructionPointerOffset(ipo.value);
-        send_now(DidStepInstruction{ vm, ipo });
+        didStepInstruction(vm, ipo);
         return State::Paused;
     }
-    send_now(DidStepInstruction{ vm, ipo });
+    didStepInstruction(vm, ipo);
     if (vm.running()) {
         if (sendUIEncounter) {
             InstructionPointerOffset ipoAfter(vm.instructionPointerOffset());
@@ -427,30 +490,85 @@ State Impl::stepInstruction(svm::VirtualMachine& vm, bool sendUIEncounter) {
     }
 }
 
+bool Impl::willStepSourceLine(svm::VirtualMachine& vm,
+                              InstructionPointerOffset ipo) {
+    assert(steppingBreakpoints.empty());
+    auto* function = sourceDebugInfo.findFunction(ipo);
+    if (!function) return false;
+    auto beginIndex = ipoIndexMap.ipoToIndex(function->begin);
+    if (!beginIndex) return false;
+    auto startLoc = sourceDebugInfo.sourceMap().toSourceLoc(ipo);
+    auto startLine = [&]() -> std::optional<SourceLine> {
+        if (!startLoc) return std::nullopt;
+        return startLoc->line;
+    }();
+    for (size_t index = *beginIndex; ipoIndexMap.isIndexValid(index); ++index) {
+        auto ipo = ipoIndexMap.indexToIpo(index);
+        if (ipo >= function->end) break;
+        bool isReturn = breakpointPatcher.opcodeAt(ipo) ==
+                        scbinutil::OpCode::ret;
+        auto sourceLoc = sourceDebugInfo.sourceMap().toSourceLoc(ipo);
+        if (isReturn || (sourceLoc && sourceLoc->line != startLine)) {
+            steppingBreakpoints.push_back(ipo);
+            breakpointPatcher.pushBreakpoint(ipo, true);
+        }
+    }
+    breakpointPatcher.patchInstructionStream(vm.getBinaryPointer());
+    return true;
+}
+
+void Impl::didStepSourceLine(svm::VirtualMachine& vm,
+                             InstructionPointerOffset ipo, bool& isReturn) {
+    for (auto ipo: steppingBreakpoints)
+        breakpointPatcher.popBreakpoint(ipo);
+    steppingBreakpoints.clear();
+    breakpointPatcher.patchInstructionStream(vm.getBinaryPointer());
+    isReturn = breakpointPatcher.opcodeAt(ipo) == scbinutil::OpCode::ret;
+}
+
 State Impl::stepSourceLine(svm::VirtualMachine& vm) {
     InstructionPointerOffset const ipo(vm.instructionPointerOffset());
-    send_now(WillStepSourceLine{ vm, ipo });
-    stepState = StepState::Line;
     isContinue = true;
+    if (willStepSourceLine(vm, ipo))
+        stepState = StepState::Line;
+    else
+        stepState = StepState::None;
     return State::RunningIndef;
+}
+
+bool Impl::willStepOut(svm::VirtualMachine& vm) {
+    auto frame = vm.getCurrentExecFrame();
+    if (frame.regPtr - frame.bottomReg < 3) return false;
+    auto* retAddr = reinterpret_cast<uint8_t*>(frame.regPtr[-1]);
+    stepOutStackPtr = frame.regPtr[-3];
+    InstructionPointerOffset dest(
+        utl::narrow_cast<uint64_t>(retAddr - vm.getBinaryPointer()));
+    breakpointPatcher.pushBreakpoint(dest, true);
+    breakpointPatcher.patchInstructionStream(vm.getBinaryPointer());
+    return true;
+}
+
+bool Impl::didStepOut(svm::VirtualMachine& vm, InstructionPointerOffset ipo) {
+    auto frame = vm.getCurrentExecFrame();
+    uint64_t stackPtr = std::bit_cast<uint64_t>(frame.stackPtr);
+    if (stepOutStackPtr >= stackPtr) {
+        return false;
+    }
+    breakpointPatcher.popBreakpoint(ipo);
+    breakpointPatcher.patchInstructionStream(vm.getBinaryPointer());
+    return true;
 }
 
 State Impl::stepOut(svm::VirtualMachine& vm) {
     InstructionPointerOffset const ipo(vm.instructionPointerOffset());
-    bool possible = true;
-    send_now(WillStepOut{ vm, ipo, &possible });
-    if (possible) {
+    if (willStepOut(vm))
         stepState = StepState::Out;
-        isContinue = true;
-        return State::RunningIndef;
-    }
-    else {
+    else
         // If stepping out is not possible, because we are in the root function,
         // we just continue normally
         stepState = StepState::None;
-        isContinue = true;
-        return State::RunningIndef;
-    }
+    isContinue = true;
+    return State::RunningIndef;
 }
 
 State Impl::doPaused() {
