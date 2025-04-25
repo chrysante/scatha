@@ -11,7 +11,7 @@ target_link_libraries(libsvm
     utility
   PRIVATE
     range-v3
-    ffi
+    libffi
 )
 
 target_include_directories(libsvm
