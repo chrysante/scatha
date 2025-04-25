@@ -27,14 +27,30 @@ function(SCSetCompilerOptions target)
   endif()
 endfunction()
 
-if(SCATHA_DEV_MODE)
-  if(NOT MSVC)
-    #add_compile_options("$<$<CONFIG:Debug>:-fsanitize=address>")
-    #add_link_options("$<$<CONFIG:Debug>:-fsanitize=address>")
-    add_compile_options("$<$<CONFIG:Debug>:-fsanitize=undefined>")
-    add_link_options("$<$<CONFIG:Debug>:-fsanitize=undefined>")
-    
-    # For now because of suspected bugs in UBSAN
-    add_compile_options("$<$<CONFIG:Debug>:-fno-sanitize=function>")
-  endif()
+set(SANITIZE "" CACHE STRING "Comma-separated list of sanitizers (e.g. address,undefined)")
+
+if(SANITIZE)
+    # Split comma-separated list into semicolon-separated CMake list
+    string(REPLACE "," ";" SAN_LIST "${SANITIZE}")
+
+    set(SANITIZER_FLAGS "")
+    foreach(SAN ${SAN_LIST})
+        string(STRIP "${SAN}" SAN)
+        if(NOT SAN STREQUAL "")
+            list(APPEND SANITIZER_FLAGS "-fsanitize=${SAN}")
+            message(STATUS "Using sanitizer: ${SAN}")
+        endif()
+        if(SAN STREQUAL "undefined")
+            set(HAVE_UBSAN TRUE)
+        endif()
+    endforeach()
+
+    if(SANITIZER_FLAGS)
+        add_compile_options("$<$<CONFIG:Debug>:${SANITIZER_FLAGS}>")
+        add_link_options("$<$<CONFIG:Debug>:${SANITIZER_FLAGS}>")
+    endif()
+
+    if($HAVE_UBSAN)
+        add_compile_options("$<$<CONFIG:Debug>:-fno-sanitize=function>")
+    endif()
 endif()
