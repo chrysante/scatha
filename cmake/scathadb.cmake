@@ -34,6 +34,7 @@ set(scathadb_core_headers
     include/scathadb/Model/SourceFile.h
 
     include/scathadb/Util/Messenger.h
+    include/scathadb/Util/TinyBoolStack.h
 )
 
 set(scathadb_core_sources
@@ -140,6 +141,8 @@ target_link_libraries(scathadb-test
 
 set(scathadb_test_sources
     test/scathadb/Model/Model.t.cc
+
+    test/scathadb/Util/TinyBoolStack.t.cc
 )
 
 target_sources(scathadb-test 
