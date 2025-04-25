@@ -247,6 +247,9 @@ extern "C" void live_patching_host_callback() {
 }
 
 TEST_CASE("Live patching breakpoints", "[model]") {
+    std::atomic_bool host_callback_called = false;
+    g_host_callback_called = &host_callback_called;
+    utl::scope_guard reset = [] { g_host_callback_called = nullptr; };
     auto [notifier, messenger] = makeComm();
     auto source = R"(
 /* 2 */ extern "C" fn live_patching_host_callback() -> void;
@@ -259,9 +262,6 @@ TEST_CASE("Live patching breakpoints", "[model]") {
 )";
     auto model = makeModel(messenger, { { "test-file.sc", source } },
                            scatha::Asm::LinkerOptions{ .searchHost = true });
-    std::atomic_bool host_callback_called = false;
-    g_host_callback_called = &host_callback_called;
-    utl::scope_guard reset = [] { g_host_callback_called = nullptr; };
 
     model.startExecution();
     waitWithTimeout([&] { return host_callback_called.load(); });
@@ -280,6 +280,9 @@ TEST_CASE("Live patching breakpoints", "[model]") {
 }
 
 TEST_CASE("Stepping out of root function", "[model]") {
+    std::atomic_bool host_callback_called = false;
+    g_host_callback_called = &host_callback_called;
+    utl::scope_guard reset = [] { g_host_callback_called = nullptr; };
     auto [notifier, messenger] = makeComm();
     auto source = R"(
 /* 2 */ extern "C" fn live_patching_host_callback() -> void;
@@ -289,8 +292,6 @@ TEST_CASE("Stepping out of root function", "[model]") {
 )";
     auto model = makeModel(messenger, { { "test-file.sc", source } },
                            scatha::Asm::LinkerOptions{ .searchHost = true });
-    std::atomic_bool host_callback_called = false;
-    g_host_callback_called = &host_callback_called;
     model.startExecution();
     waitWithTimeout([&] { return host_callback_called.load(); });
     model.toggleExecution();
