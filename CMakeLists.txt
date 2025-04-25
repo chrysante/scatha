@@ -18,7 +18,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Dependencies
-CPMAddPackage("gh:chrysante/ffi#056820cdba557fe7730d7d5f930d53789a8dfbb4")
+CPMAddPackage("gh:chrysante/ffi#7d209f2d2bf557c4cd2fc10f884819768dce7cbb")
 CPMAddPackage("gh:ericniebler/range-v3#0.12.0")
 CPMAddPackage("gh:nlohmann/json@3.11.3")
 CPMAddPackage("gh:hanickadot/compile-time-regular-expressions@3.9.0")
