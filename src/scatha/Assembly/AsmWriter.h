@@ -1,5 +1,5 @@
-#ifndef SCATHA_ASSEMBLY_ASMWRITER
-#define SCATHA_ASSEMBLY_ASMWRITER
+#ifndef SCATHA_ASSEMBLY_ASMWRITER_H_
+#define SCATHA_ASSEMBLY_ASMWRITER_H_
 
 #include <string_view>
 #include <vector>
@@ -55,4 +55,4 @@ struct AsmWriter {
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASSEMBLY_ASMWRITER
+#endif // SCATHA_ASSEMBLY_ASMWRITER_H_

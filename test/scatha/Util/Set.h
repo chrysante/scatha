@@ -1,5 +1,5 @@
-#ifndef TEST_SET_H_
-#define TEST_SET_H_
+#ifndef SCATHA_UTIL_SET_H_
+#define SCATHA_UTIL_SET_H_
 
 #include <initializer_list>
 #include <iterator>
@@ -33,4 +33,4 @@ endLoop:
 
 } // namespace test
 
-#endif // TEST_SET_H_
+#endif // SCATHA_UTIL_SET_H_

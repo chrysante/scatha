@@ -1,5 +1,5 @@
-#ifndef SCATHA_AST_SOURCELOCATION_H_
-#define SCATHA_AST_SOURCELOCATION_H_
+#ifndef SCATHA_COMMON_SOURCELOCATION_H_
+#define SCATHA_COMMON_SOURCELOCATION_H_
 
 #include <compare>
 #include <iosfwd>
@@ -91,4 +91,4 @@ SourceRange merge(R&& r) {
 
 } // namespace scatha
 
-#endif // SCATHA_AST_SOURCELOCATION_H_
+#endif // SCATHA_COMMON_SOURCELOCATION_H_

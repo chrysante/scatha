@@ -1,5 +1,5 @@
-#ifndef SVM_VIEWS_HELPPANEL_H_
-#define SVM_VIEWS_HELPPANEL_H_
+#ifndef SCATHADB_VIEWS_HELPPANEL_H_
+#define SCATHADB_VIEWS_HELPPANEL_H_
 
 #include <string>
 #include <vector>
@@ -31,4 +31,4 @@ ModalView HelpPanel();
 
 } // namespace sdb
 
-#endif // SVM_VIEWS_HELPPANEL_H_
+#endif // SCATHADB_VIEWS_HELPPANEL_H_

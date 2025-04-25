@@ -1,5 +1,5 @@
-#ifndef SDB_MODEL_BREAKPOINTMANAGER_H_
-#define SDB_MODEL_BREAKPOINTMANAGER_H_
+#ifndef SCATHADB_MODEL_BREAKPOINTMANAGER_H_
+#define SCATHADB_MODEL_BREAKPOINTMANAGER_H_
 
 #include <cstddef>
 #include <vector>
@@ -52,4 +52,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_MODEL_BREAKPOINTMANAGER_H_
+#endif // SCATHADB_MODEL_BREAKPOINTMANAGER_H_

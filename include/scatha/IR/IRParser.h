@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_PARSER_H_
-#define SCATHA_IR_PARSER_H_
+#ifndef SCATHA_IR_IRPARSER_H_
+#define SCATHA_IR_IRPARSER_H_
 
 #include <string_view>
 #include <vector>
@@ -56,4 +56,4 @@ SCATHA_API std::vector<ParseIssue> parseTo(std::string_view text, Context& ctx,
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_PARSER_H_
+#endif // SCATHA_IR_IRPARSER_H_

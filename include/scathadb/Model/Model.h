@@ -1,5 +1,5 @@
-#ifndef SDB_MODEL_MODEL_H_
-#define SDB_MODEL_MODEL_H_
+#ifndef SCATHADB_MODEL_MODEL_H_
+#define SCATHADB_MODEL_MODEL_H_
 
 #include <filesystem>
 #include <memory>
@@ -123,4 +123,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_MODEL_MODEL_H_
+#endif // SCATHADB_MODEL_MODEL_H_

@@ -1,5 +1,4 @@
-// No include guards
-// This file is has .h extension so it will be caught by our formatting script
+// NO-INCLUDE-GUARD
 
 // ===--------------------------------------------------------------------=== //
 // === List of all reasons for a generic bad statement -------------------=== //

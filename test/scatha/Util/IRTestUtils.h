@@ -1,5 +1,5 @@
-#ifndef SCATHA_TEST_IRTESTUTILS_H_
-#define SCATHA_TEST_IRTESTUTILS_H_
+#ifndef SCATHA_UTIL_IRTESTUTILS_H_
+#define SCATHA_UTIL_IRTESTUTILS_H_
 
 #include <concepts>
 #include <stdexcept>
@@ -62,4 +62,4 @@ private:
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_IRTESTUTILS_H_
+#endif // SCATHA_UTIL_IRTESTUTILS_H_

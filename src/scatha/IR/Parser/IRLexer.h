@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_IRLEXER_H_
-#define SCATHA_IR_IRLEXER_H_
+#ifndef SCATHA_IR_PARSER_IRLEXER_H_
+#define SCATHA_IR_PARSER_IRLEXER_H_
 
 #include <string_view>
 
@@ -29,4 +29,4 @@ private:
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_IRLEXER_H_
+#endif // SCATHA_IR_PARSER_IRLEXER_H_

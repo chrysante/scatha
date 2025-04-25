@@ -1,5 +1,5 @@
-#ifndef SCATHA_LEXER_LEXER_H_
-#define SCATHA_LEXER_LEXER_H_
+#ifndef SCATHA_PARSER_LEXER_H_
+#define SCATHA_PARSER_LEXER_H_
 
 #include <string_view>
 #include <vector>
@@ -17,4 +17,4 @@ SCTEST_API std::vector<Token> lex(std::string_view text,
 
 } // namespace scatha::parser
 
-#endif // SCATHA_LEXER_LEXER_H_
+#endif // SCATHA_PARSER_LEXER_H_

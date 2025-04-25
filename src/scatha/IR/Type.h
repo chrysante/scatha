@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_TYPES_H_
-#define SCATHA_IR_TYPES_H_
+#ifndef SCATHA_IR_TYPE_H_
+#define SCATHA_IR_TYPE_H_
 
 #include <span>
 #include <string>
@@ -251,4 +251,4 @@ private:
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_TYPES_H_
+#endif // SCATHA_IR_TYPE_H_

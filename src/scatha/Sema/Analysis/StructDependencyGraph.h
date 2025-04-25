@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_ANALYSIS_DEPENDENCYGRAPH_H_
-#define SCATHA_SEMA_ANALYSIS_DEPENDENCYGRAPH_H_
+#ifndef SCATHA_SEMA_ANALYSIS_STRUCTDEPENDENCYGRAPH_H_
+#define SCATHA_SEMA_ANALYSIS_STRUCTDEPENDENCYGRAPH_H_
 
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
@@ -67,4 +67,4 @@ using SDGNode = StructDependencyGraph::Node;
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_ANALYSIS_DEPENDENCYGRAPH_H_
+#endif // SCATHA_SEMA_ANALYSIS_STRUCTDEPENDENCYGRAPH_H_

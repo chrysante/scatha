@@ -1,5 +1,5 @@
-#ifndef SCATHA_COMMON_TREEPRINTER_H_
-#define SCATHA_COMMON_TREEPRINTER_H_
+#ifndef SCATHA_COMMON_TREEFORMATTER_H_
+#define SCATHA_COMMON_TREEFORMATTER_H_
 
 #include <cstdint>
 #include <ostream>
@@ -27,4 +27,4 @@ private:
 
 } // namespace scatha
 
-#endif // SCATHA_COMMON_TREEPRINTER_H_
+#endif // SCATHA_COMMON_TREEFORMATTER_H_

@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_ANALYSIS_VTABLE_H_
-#define SCATHA_SEMA_ANALYSIS_VTABLE_H_
+#ifndef SCATHA_SEMA_VTABLE_H_
+#define SCATHA_SEMA_VTABLE_H_
 
 #include <memory>
 #include <span>
@@ -110,4 +110,4 @@ private:
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_ANALYSIS_VTABLE_H_
+#endif // SCATHA_SEMA_VTABLE_H_

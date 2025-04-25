@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_PARSER_TOKEN_H_
-#define SCATHA_IR_PARSER_TOKEN_H_
+#ifndef SCATHA_IR_PARSER_IRTOKEN_H_
+#define SCATHA_IR_PARSER_IRTOKEN_H_
 
 #include <optional>
 #include <string_view>
@@ -142,4 +142,4 @@ private:
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_PARSER_TOKEN_H_
+#endif // SCATHA_IR_PARSER_IRTOKEN_H_

@@ -1,5 +1,5 @@
-#ifndef SCATHA_PARSE_PANIC_H_
-#define SCATHA_PARSE_PANIC_H_
+#ifndef SCATHA_PARSER_PANIC_H_
+#define SCATHA_PARSER_PANIC_H_
 
 #include <span>
 #include <string_view>
@@ -17,4 +17,4 @@ void panic(class TokenStream&, PanicOptions = {});
 
 } // namespace scatha::parser
 
-#endif // SCATHA_PARSE_PANIC_H_
+#endif // SCATHA_PARSER_PANIC_H_

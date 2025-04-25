@@ -1,5 +1,5 @@
-#ifndef SDB_UI_COMMON_H_
-#define SDB_UI_COMMON_H_
+#ifndef SCATHADB_UI_COMMON_H_
+#define SCATHADB_UI_COMMON_H_
 
 #include <atomic>
 #include <string>
@@ -145,4 +145,4 @@ void beep();
 
 } // namespace sdb
 
-#endif // SDB_UI_COMMON_H_
+#endif // SCATHADB_UI_COMMON_H_

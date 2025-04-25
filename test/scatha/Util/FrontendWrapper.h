@@ -1,5 +1,5 @@
-#ifndef SCATHA_TEST_FRONTENDWRAPPER_H_
-#define SCATHA_TEST_FRONTENDWRAPPER_H_
+#ifndef SCATHA_UTIL_FRONTENDWRAPPER_H_
+#define SCATHA_UTIL_FRONTENDWRAPPER_H_
 
 #include <string>
 #include <utility>
@@ -13,4 +13,4 @@ std::pair<ir::Context, ir::Module> makeIR(std::vector<std::string> sourceTexts);
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_FRONTENDWRAPPER_H_
+#endif // SCATHA_UTIL_FRONTENDWRAPPER_H_

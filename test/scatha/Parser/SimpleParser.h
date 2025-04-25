@@ -1,5 +1,5 @@
-#ifndef SCATHA_TEST_SIMPLEPARSER_H_
-#define SCATHA_TEST_SIMPLEPARSER_H_
+#ifndef SCATHA_PARSER_SIMPLEPARSER_H_
+#define SCATHA_PARSER_SIMPLEPARSER_H_
 
 #include <utility>
 
@@ -16,4 +16,4 @@ parser::TokenStream makeTokenStream(std::string_view text);
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_SIMPLEPARSER_H_
+#endif // SCATHA_PARSER_SIMPLEPARSER_H_

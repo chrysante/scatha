@@ -1,5 +1,5 @@
-#ifndef SDB_MODEL_EVENTS_H_
-#define SDB_MODEL_EVENTS_H_
+#ifndef SCATHADB_MODEL_EVENTS_H_
+#define SCATHADB_MODEL_EVENTS_H_
 
 #include <functional>
 
@@ -68,4 +68,4 @@ struct OpenSourceFileRequest {
 
 } // namespace sdb
 
-#endif // SDB_MODEL_EVENTS_H_
+#endif // SCATHADB_MODEL_EVENTS_H_

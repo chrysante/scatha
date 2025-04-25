@@ -1,5 +1,5 @@
-#ifndef SDB_UI_MODALVIEW_H_
-#define SDB_UI_MODALVIEW_H_
+#ifndef SCATHADB_UI_MODALVIEW_H_
+#define SCATHADB_UI_MODALVIEW_H_
 
 #include <string>
 
@@ -53,4 +53,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_UI_MODALVIEW_H_
+#endif // SCATHADB_UI_MODALVIEW_H_

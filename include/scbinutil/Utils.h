@@ -1,3 +1,6 @@
+#ifndef SCBINUTIL_UTILS_H_
+#define SCBINUTIL_UTILS_H_
+
 #include <cstdint>
 #include <span>
 
@@ -11,3 +14,5 @@ namespace scbinutil {
 std::span<uint8_t const> seekBinary(std::span<uint8_t const> file);
 
 } // namespace scbinutil
+
+#endif // SCBINUTIL_UTILS_H_

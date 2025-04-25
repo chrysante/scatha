@@ -1,5 +1,5 @@
-#ifndef SDB_APP_DEBUGGER_H_
-#define SDB_APP_DEBUGGER_H_
+#ifndef SCATHADB_APP_DEBUGGER_H_
+#define SCATHADB_APP_DEBUGGER_H_
 
 #include <functional>
 #include <memory>
@@ -101,4 +101,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_APP_DEBUGGER_H_
+#endif // SCATHADB_APP_DEBUGGER_H_

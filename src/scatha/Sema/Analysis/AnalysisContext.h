@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_ANALYSISCONTEXT_H_
-#define SCATHA_SEMA_ANALYSISCONTEXT_H_
+#ifndef SCATHA_SEMA_ANALYSIS_ANALYSISCONTEXT_H_
+#define SCATHA_SEMA_ANALYSIS_ANALYSISCONTEXT_H_
 
 #include <utl/hashtable.hpp>
 
@@ -81,4 +81,4 @@ private:
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_ANALYSISCONTEXT_H_
+#endif // SCATHA_SEMA_ANALYSIS_ANALYSISCONTEXT_H_

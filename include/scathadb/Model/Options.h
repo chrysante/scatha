@@ -1,5 +1,5 @@
-#ifndef SDB_MODEL_OPTIONS_H_
-#define SDB_MODEL_OPTIONS_H_
+#ifndef SCATHADB_MODEL_OPTIONS_H_
+#define SCATHADB_MODEL_OPTIONS_H_
 
 #include <filesystem>
 #include <span>
@@ -23,4 +23,4 @@ Options parseArguments(std::span<std::string const> arguments);
 
 } // namespace sdb
 
-#endif // SDB_MODEL_OPTIONS_H_
+#endif // SCATHADB_MODEL_OPTIONS_H_

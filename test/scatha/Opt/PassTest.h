@@ -1,5 +1,5 @@
-#ifndef SCATHA_TEST_PASSTEST_H_
-#define SCATHA_TEST_PASSTEST_H_
+#ifndef SCATHA_OPT_PASSTEST_H_
+#define SCATHA_OPT_PASSTEST_H_
 
 #include <functional>
 #include <string>
@@ -28,4 +28,4 @@ void passTest(std::string pipeline, std::string mSource, std::string refSource);
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_PASSTEST_H_
+#endif // SCATHA_OPT_PASSTEST_H_

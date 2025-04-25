@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_IRPRINT_H_
-#define SCATHA_IR_IRPRINT_H_
+#ifndef SCATHA_IR_PRINT_H_
+#define SCATHA_IR_PRINT_H_
 
 #include <iosfwd>
 #include <string>
@@ -59,4 +59,4 @@ SCATHA_API std::string toString(Value const* value);
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_IRPRINT_H_
+#endif // SCATHA_IR_PRINT_H_

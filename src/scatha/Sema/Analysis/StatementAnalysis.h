@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_ANALYSIS_STATEMENTALYSIS_H_
-#define SCATHA_SEMA_ANALYSIS_STATEMENTALYSIS_H_
+#ifndef SCATHA_SEMA_ANALYSIS_STATEMENTANALYSIS_H_
+#define SCATHA_SEMA_ANALYSIS_STATEMENTANALYSIS_H_
 
 #include "AST/Fwd.h"
 #include "Common/Base.h"
@@ -14,4 +14,4 @@ SCTEST_API void analyzeStatement(AnalysisContext& ctx, ast::Statement* stmt);
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_ANALYSIS_STATEMENTALYSIS_H_
+#endif // SCATHA_SEMA_ANALYSIS_STATEMENTANALYSIS_H_

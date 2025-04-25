@@ -193,4 +193,4 @@ private:
 
 } // namespace scatha
 
-#endif // SCATHA_IR_LIST_H_
+#endif // SCATHA_COMMON_LIST_H_

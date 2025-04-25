@@ -1,5 +1,5 @@
-#ifndef SCATHA_TEST_ENDTOENDTESTS_PASSTESTING_H_
-#define SCATHA_TEST_ENDTOENDTESTS_PASSTESTING_H_
+#ifndef SCATHA_ENDTOENDTESTS_PASSTESTING_H_
+#define SCATHA_ENDTOENDTESTS_PASSTESTING_H_
 
 #include <optional>
 #include <span>
@@ -70,4 +70,4 @@ void checkPrints(std::string_view printed, std::string source);
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_ENDTOENDTESTS_PASSTESTING_H_
+#endif // SCATHA_ENDTOENDTESTS_PASSTESTING_H_

@@ -1,5 +1,5 @@
-#ifndef SCATHA_ASM_BLOCK_H_
-#define SCATHA_ASM_BLOCK_H_
+#ifndef SCATHA_ASSEMBLY_BLOCK_H_
+#define SCATHA_ASSEMBLY_BLOCK_H_
 
 #include <string>
 #include <string_view>
@@ -91,4 +91,4 @@ private:
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASM_BLOCK_H_
+#endif // SCATHA_ASSEMBLY_BLOCK_H_

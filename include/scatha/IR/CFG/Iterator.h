@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_ITERATOR_H_
-#define SCATHA_IR_ITERATOR_H_
+#ifndef SCATHA_IR_CFG_ITERATOR_H_
+#define SCATHA_IR_CFG_ITERATOR_H_
 
 #include <scatha/Common/List.h>
 #include <scatha/IR/Fwd.h>
@@ -154,4 +154,4 @@ private:
 
 } // namespace scatha::ir::internal
 
-#endif // SCATHA_IR_ITERATOR_H_
+#endif // SCATHA_IR_CFG_ITERATOR_H_

@@ -1,5 +1,5 @@
-#ifndef SCATHA_CG_SELECTIONNODE_H_
-#define SCATHA_CG_SELECTIONNODE_H_
+#ifndef SCATHA_CODEGEN_SELECTIONNODE_H_
+#define SCATHA_CODEGEN_SELECTIONNODE_H_
 
 #include <span>
 
@@ -141,4 +141,4 @@ private:
 
 } // namespace scatha::cg
 
-#endif // SCATHA_CG_SELECTIONNODE_H_
+#endif // SCATHA_CODEGEN_SELECTIONNODE_H_

@@ -1,5 +1,5 @@
-#ifndef TEST_ISSUEHELPER_H_
-#define TEST_ISSUEHELPER_H_
+#ifndef SCATHA_UTIL_ISSUEHELPER_H_
+#define SCATHA_UTIL_ISSUEHELPER_H_
 
 #include <concepts>
 #include <optional>
@@ -82,4 +82,4 @@ inline IssueHelper getSemaIssues(std::vector<std::string> sources,
 
 } // namespace scatha::test
 
-#endif // TEST_ISSUEHELPER_H_
+#endif // SCATHA_UTIL_ISSUEHELPER_H_

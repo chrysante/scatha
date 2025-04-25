@@ -1,5 +1,5 @@
-#ifndef SDB_MODEL_STDOUT_H_
-#define SDB_MODEL_STDOUT_H_
+#ifndef SCATHADB_MODEL_STDOUT_H_
+#define SCATHADB_MODEL_STDOUT_H_
 
 #include <functional>
 #include <sstream>
@@ -42,4 +42,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_MODEL_STDOUT_H_
+#endif // SCATHADB_MODEL_STDOUT_H_

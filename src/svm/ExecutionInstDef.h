@@ -1,3 +1,5 @@
+// NO-INCLUDE-GUARD
+
 // No include guard, because this file may be included multiple times
 
 /// This file defines the main interpreter execution routine. The exact

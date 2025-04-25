@@ -1,5 +1,5 @@
-#ifndef SDB_MODEL_EXECUTOR_H_
-#define SDB_MODEL_EXECUTOR_H_
+#ifndef SCATHADB_MODEL_EXECUTOR_H_
+#define SCATHADB_MODEL_EXECUTOR_H_
 
 #include <concepts>
 #include <filesystem>
@@ -101,4 +101,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_MODEL_EXECUTOR_H_
+#endif // SCATHADB_MODEL_EXECUTOR_H_

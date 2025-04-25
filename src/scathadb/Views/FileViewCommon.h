@@ -1,5 +1,5 @@
-#ifndef SDB_VIEWS_FILEVIEWCOMMON_H_
-#define SDB_VIEWS_FILEVIEWCOMMON_H_
+#ifndef SCATHADB_VIEWS_FILEVIEWCOMMON_H_
+#define SCATHADB_VIEWS_FILEVIEWCOMMON_H_
 
 #include <string>
 
@@ -34,4 +34,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_VIEWS_FILEVIEWCOMMON_H_
+#endif // SCATHADB_VIEWS_FILEVIEWCOMMON_H_

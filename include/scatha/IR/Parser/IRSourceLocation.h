@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_PARSER_SOURCELOCATION_H_
-#define SCATHA_IR_PARSER_SOURCELOCATION_H_
+#ifndef SCATHA_IR_PARSER_IRSOURCELOCATION_H_
+#define SCATHA_IR_PARSER_IRSOURCELOCATION_H_
 
 #include <scatha/Common/Base.h>
 
@@ -11,4 +11,4 @@ struct SourceLocation {
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_PARSER_SOURCELOCATION_H_
+#endif // SCATHA_IR_PARSER_IRSOURCELOCATION_H_

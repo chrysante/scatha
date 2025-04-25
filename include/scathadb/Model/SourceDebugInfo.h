@@ -1,5 +1,5 @@
-#ifndef SDB_MODEL_SOURCEDEBUGINFO_H_
-#define SDB_MODEL_SOURCEDEBUGINFO_H_
+#ifndef SCATHADB_MODEL_SOURCEDEBUGINFO_H_
+#define SCATHADB_MODEL_SOURCEDEBUGINFO_H_
 
 #include <filesystem>
 #include <optional>
@@ -119,4 +119,4 @@ private:
 
 } // namespace sdb
 
-#endif // SDB_MODEL_SOURCEDEBUGINFO_H_
+#endif // SCATHADB_MODEL_SOURCEDEBUGINFO_H_

@@ -1,5 +1,5 @@
-#ifndef TEST_COUTREROUTER_H_
-#define TEST_COUTREROUTER_H_
+#ifndef SCATHA_UTIL_COUTREROUTER_H_
+#define SCATHA_UTIL_COUTREROUTER_H_
 
 #include <iosfwd>
 #include <sstream>
@@ -23,4 +23,4 @@ private:
 
 } // namespace scatha::test
 
-#endif // TEST_COUTREROUTER_H_
+#endif // SCATHA_UTIL_COUTREROUTER_H_

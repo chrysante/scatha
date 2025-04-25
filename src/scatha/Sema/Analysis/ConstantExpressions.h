@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_CONSTANTEXPRESSIONS_H_
-#define SCATHA_SEMA_CONSTANTEXPRESSIONS_H_
+#ifndef SCATHA_SEMA_ANALYSIS_CONSTANTEXPRESSIONS_H_
+#define SCATHA_SEMA_ANALYSIS_CONSTANTEXPRESSIONS_H_
 
 #include "AST/Fwd.h"
 #include "Common/APFloat.h"
@@ -101,4 +101,4 @@ UniquePtr<Value> evalConditional(Value const* condition, Value const* thenValue,
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_CONSTANTEXPRESSIONS_H_
+#endif // SCATHA_SEMA_ANALYSIS_CONSTANTEXPRESSIONS_H_

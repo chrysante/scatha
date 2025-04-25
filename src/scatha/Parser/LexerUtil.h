@@ -1,5 +1,5 @@
-#ifndef SCATHA_LEXER_LEXERUTIL_H_
-#define SCATHA_LEXER_LEXERUTIL_H_
+#ifndef SCATHA_PARSER_LEXERUTIL_H_
+#define SCATHA_PARSER_LEXERUTIL_H_
 
 #include <cctype>
 #include <utl/common.hpp>
@@ -34,4 +34,4 @@ bool isOperator(std::string_view);
 
 } // namespace scatha::lex
 
-#endif // SCATHA_LEXER_LEXERUTIL_H_
+#endif // SCATHA_PARSER_LEXERUTIL_H_

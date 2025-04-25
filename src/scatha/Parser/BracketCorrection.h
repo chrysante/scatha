@@ -1,5 +1,5 @@
-#ifndef PARSER_BRACKETCORRECTION_H_
-#define PARSER_BRACKETCORRECTION_H_
+#ifndef SCATHA_PARSER_BRACKETCORRECTION_H_
+#define SCATHA_PARSER_BRACKETCORRECTION_H_
 
 #include <vector>
 
@@ -50,4 +50,4 @@ SCATHA_API void bracketCorrection(std::vector<Token>& tokens,
 
 } // namespace scatha::parser
 
-#endif // PARSER_BRACKETCORRECTION_H_
+#endif // SCATHA_PARSER_BRACKETCORRECTION_H_

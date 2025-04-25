@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_EXPRESSIONANALYSIS_H_
-#define SCATHA_SEMA_EXPRESSIONANALYSIS_H_
+#ifndef SCATHA_SEMA_ANALYSIS_EXPRESSIONANALYSIS_H_
+#define SCATHA_SEMA_ANALYSIS_EXPRESSIONANALYSIS_H_
 
 #include "AST/Fwd.h"
 #include "Issue/IssueHandler.h"
@@ -39,4 +39,4 @@ Type const* deduceType(ast::Expression* typeExpr, ast::Expression* valueExpr,
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_EXPRESSIONANALYSIS_H_
+#endif // SCATHA_SEMA_ANALYSIS_EXPRESSIONANALYSIS_H_

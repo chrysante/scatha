@@ -1,5 +1,5 @@
-#ifndef TEST_EQUALITYTESTHELPER_H_
-#define TEST_EQUALITYTESTHELPER_H_
+#ifndef SCATHA_IR_EQUALITYTESTHELPER_H_
+#define SCATHA_IR_EQUALITYTESTHELPER_H_
 
 #include <string>
 
@@ -133,4 +133,4 @@ inline ModuleEqTester testModule(scatha::ir::Module const* mod = nullptr) {
 
 } // namespace scatha::test::ir
 
-#endif // TEST_EQUALITYTESTHELPER_H_
+#endif // SCATHA_IR_EQUALITYTESTHELPER_H_

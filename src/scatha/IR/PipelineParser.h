@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_PASSMANAGERIMPL_H_
-#define SCATHA_IR_PASSMANAGERIMPL_H_
+#ifndef SCATHA_IR_PIPELINEPARSER_H_
+#define SCATHA_IR_PIPELINEPARSER_H_
 
 #include <string_view>
 
@@ -50,4 +50,4 @@ SCATHA_API Pipeline parsePipeline(std::string_view script);
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_PASSMANAGERIMPL_H_
+#endif // SCATHA_IR_PIPELINEPARSER_H_

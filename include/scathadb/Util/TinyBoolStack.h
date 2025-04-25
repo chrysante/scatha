@@ -1,5 +1,5 @@
-#ifndef SDB_UTIL_TINYBOOLSTACK_H_
-#define SDB_UTIL_TINYBOOLSTACK_H_
+#ifndef SCATHADB_UTIL_TINYBOOLSTACK_H_
+#define SCATHADB_UTIL_TINYBOOLSTACK_H_
 
 #include <bit>
 #include <cassert>
@@ -108,4 +108,4 @@ static_assert(TinyBoolStack<uint8_t>::capacity() == 5);
 
 } // namespace sdb
 
-#endif // SDB_UTIL_TINYBOOLSTACK_H_
+#endif // SCATHADB_UTIL_TINYBOOLSTACK_H_

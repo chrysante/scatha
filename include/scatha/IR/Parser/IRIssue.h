@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_PARSER_ISSUE_H_
-#define SCATHA_IR_PARSER_ISSUE_H_
+#ifndef SCATHA_IR_PARSER_IRISSUE_H_
+#define SCATHA_IR_PARSER_IRISSUE_H_
 
 #include <iosfwd>
 #include <variant>
@@ -72,4 +72,4 @@ SCATHA_API std::string toString(ParseIssue const& issue);
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_PARSER_ISSUE_H_
+#endif // SCATHA_IR_PARSER_IRISSUE_H_

@@ -1,5 +1,5 @@
-#ifndef TEST_SEMAUTIL_H_
-#define TEST_SEMAUTIL_H_
+#ifndef SCATHA_SEMA_SEMAUTIL_H_
+#define SCATHA_SEMA_SEMAUTIL_H_
 
 #include <stdexcept>
 #include <string>
@@ -73,4 +73,4 @@ struct Finder {
 
 } // namespace scatha::test
 
-#endif // TEST_SEMAUTIL_H_
+#endif // SCATHA_SEMA_SEMAUTIL_H_

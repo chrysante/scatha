@@ -1,5 +1,5 @@
-#ifndef SCATHA_TEST_IR_EQUAL_H_
-#define SCATHA_TEST_IR_EQUAL_H_
+#ifndef SCATHA_IR_EQUAL_H_
+#define SCATHA_IR_EQUAL_H_
 
 #include <string>
 
@@ -40,4 +40,4 @@ EqResult funcEqual(scatha::ir::Function const& F,
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_IR_EQUAL_H_
+#endif // SCATHA_IR_EQUAL_H_

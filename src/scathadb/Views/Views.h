@@ -1,5 +1,5 @@
-#ifndef SDB_VIEWS_VIEWS_H_
-#define SDB_VIEWS_VIEWS_H_
+#ifndef SCATHADB_VIEWS_VIEWS_H_
+#define SCATHADB_VIEWS_VIEWS_H_
 
 #include <functional>
 #include <string>
@@ -51,4 +51,4 @@ ModalView UnloadConfirm(std::function<void()> doUnload);
 
 } // namespace sdb
 
-#endif // SDB_VIEWS_VIEWS_H_
+#endif // SCATHADB_VIEWS_VIEWS_H_

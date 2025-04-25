@@ -1,7 +1,7 @@
 /// This header is public because syntax issues contain tokens
 
-#ifndef SCATHA_AST_TOKEN_H_
-#define SCATHA_AST_TOKEN_H_
+#ifndef SCATHA_PARSER_TOKEN_H_
+#define SCATHA_PARSER_TOKEN_H_
 
 #include <string>
 
@@ -89,4 +89,4 @@ private:
 
 } // namespace scatha::parser
 
-#endif // SCATHA_AST_TOKEN_H_
+#endif // SCATHA_PARSER_TOKEN_H_

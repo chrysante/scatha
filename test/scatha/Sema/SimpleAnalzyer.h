@@ -1,5 +1,5 @@
-#ifndef SCATHA_TEST_SIMPLEANALYZER_H_
-#define SCATHA_TEST_SIMPLEANALYZER_H_
+#ifndef SCATHA_SEMA_SIMPLEANALZYER_H_
+#define SCATHA_SEMA_SIMPLEANALZYER_H_
 
 #include <string_view>
 #include <tuple>
@@ -21,4 +21,4 @@ std::tuple<UniquePtr<ast::ASTNode>, sema::SymbolTable, IssueHandler>
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_SIMPLEANALYZER_H_
+#endif // SCATHA_SEMA_SIMPLEANALZYER_H_

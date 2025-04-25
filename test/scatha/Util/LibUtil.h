@@ -1,5 +1,5 @@
-#ifndef SCATHA_TEST_LIBUTIL_H_
-#define SCATHA_TEST_LIBUTIL_H_
+#ifndef SCATHA_UTIL_LIBUTIL_H_
+#define SCATHA_UTIL_LIBUTIL_H_
 
 #include <scatha/Assembly/Options.h>
 
@@ -20,4 +20,4 @@ uint64_t compileAndRunDependentProgram(std::filesystem::path libSearchPath,
 
 } // namespace scatha::test
 
-#endif // SCATHA_TEST_LIBUTIL_H_
+#endif // SCATHA_UTIL_LIBUTIL_H_

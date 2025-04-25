@@ -1,5 +1,5 @@
-#ifndef SCATHA_CG_SDMATCH_H_
-#define SCATHA_CG_SDMATCH_H_
+#ifndef SCATHA_CODEGEN_SDMATCH_H_
+#define SCATHA_CODEGEN_SDMATCH_H_
 
 #include <functional>
 
@@ -113,4 +113,4 @@ struct MatcherToInstType<cg::Matcher<Inst>>: std::type_identity<Inst> {};
 
 } // namespace scatha::cg::internal
 
-#endif // SCATHA_CG_SDMATCH_H_
+#endif // SCATHA_CODEGEN_SDMATCH_H_
