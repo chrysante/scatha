@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <utl/hashmap.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>

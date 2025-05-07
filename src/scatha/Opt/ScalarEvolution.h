@@ -3,7 +3,7 @@
 
 #include <iosfwd>
 
-#include <utl/hashmap.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/streammanip.hpp>
 
 #include "Common/APInt.h"

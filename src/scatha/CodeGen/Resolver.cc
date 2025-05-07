@@ -1,5 +1,7 @@
 #include "CodeGen/Resolver.h"
 
+#include <bit>
+
 #include <range/v3/view.hpp>
 #include <svm/VirtualPointer.h>
 
@@ -87,7 +89,7 @@ mir::Value* Resolver::impl(ir::GlobalVariable const& var) const {
         };
         var.initializer()->writeValueTo(data, callback);
         /// FIXME: Slot index 1 is hard coded here.
-        auto address = utl::bit_cast<uint64_t>(
+        auto address = std::bit_cast<uint64_t>(
             svm::VirtualPointer{ .offset = offset & 0xFFFF'FFFF'FFFF,
                                  .slotIndex = 1 });
         valueMap().addStaticAddress(&var, address);
@@ -110,10 +112,10 @@ mir::Value* Resolver::impl(ir::FloatingPointConstant const& constant) const {
               "Can't handle extended width floats");
     uint64_t value = 0;
     if (constant.value().precision() == APFloatPrec::Single()) {
-        value = utl::bit_cast<uint32_t>(constant.value().to<float>());
+        value = std::bit_cast<uint32_t>(constant.value().to<float>());
     }
     else {
-        value = utl::bit_cast<uint64_t>(constant.value().to<double>());
+        value = std::bit_cast<uint64_t>(constant.value().to<double>());
     }
     auto* mirConst = ctx->constant(value, constant.type()->size());
     valueMap().addValue(&constant, mirConst);

@@ -1,7 +1,7 @@
 #ifndef SCATHA_SEMA_ANALYSIS_STRUCTDEPENDENCYGRAPH_H_
 #define SCATHA_SEMA_ANALYSIS_STRUCTDEPENDENCYGRAPH_H_
 
-#include <utl/hashmap.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"

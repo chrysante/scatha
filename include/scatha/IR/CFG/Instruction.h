@@ -4,7 +4,7 @@
 #include <span>
 #include <string>
 
-#include <utl/small_ptr_vector.hpp>
+#include <utl/tiny_ptr_vector.hpp>
 
 #include <scatha/Common/List.h>
 #include <scatha/Common/Ranges.h>
@@ -60,7 +60,7 @@ public:
     std::string_view comment() const { return _comment; }
 
 protected:
-    utl::small_ptr_vector<Type const*> typeOps;
+    utl::tiny_ptr_vector<Type const*> typeOps;
     /// TODO: Create a small string class and use that here
     std::string _comment;
 };

@@ -8,7 +8,7 @@
 
 #include <scatha/Common/Metadata.h>
 #include <scatha/Common/SourceLocation.h>
-#include <utl/hashmap.hpp>
+#include <utl/hashtable.hpp>
 
 namespace scatha {
 

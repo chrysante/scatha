@@ -10,8 +10,8 @@
 #include <utility>
 
 #include <range/v3/view.hpp>
-#include <utl/hashmap.hpp>
-#include <utl/small_ptr_vector.hpp>
+#include <utl/hashtable.hpp>
+#include <utl/tiny_ptr_vector.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
@@ -182,7 +182,7 @@ private:
     AccessControl accessCtrl = InvalidAccessControl;
     Scope* _parent = nullptr;
     std::string _name;
-    utl::small_ptr_vector<Alias*> _aliases;
+    utl::tiny_ptr_vector<Alias*> _aliases;
     ast::ASTNode* _astNode = nullptr;
 };
 
@@ -382,11 +382,11 @@ public:
     ScopeKind kind() const { return _kind; }
 
     /// Find entities by name within this scope
-    utl::small_ptr_vector<Entity*> findEntities(
-        std::string_view name, bool findHiddenEntities = false);
+    utl::tiny_ptr_vector<Entity*> findEntities(std::string_view name,
+                                               bool findHiddenEntities = false);
 
     /// \overload
-    utl::small_ptr_vector<Entity const*> findEntities(
+    utl::tiny_ptr_vector<Entity const*> findEntities(
         std::string_view name, bool findHiddenEntities = false) const;
 
     /// Find the property \p prop in this scope
@@ -446,12 +446,12 @@ private:
     friend class Entity;
 
     template <typename E, typename S>
-    static utl::small_ptr_vector<E*> findEntitiesImpl(S* self,
-                                                      std::string_view name,
-                                                      bool findHidden);
+    static utl::tiny_ptr_vector<E*> findEntitiesImpl(S* self,
+                                                     std::string_view name,
+                                                     bool findHidden);
 
     utl::hashset<Scope*> _children;
-    utl::hashmap<std::string, utl::small_ptr_vector<Entity*>> _names;
+    utl::hashmap<std::string, utl::tiny_ptr_vector<Entity*>> _names;
     utl::hashmap<PropertyKind, Property*> _properties;
     ScopeKind _kind;
 };

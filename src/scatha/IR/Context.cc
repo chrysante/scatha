@@ -4,8 +4,7 @@
 
 #include <range/v3/view.hpp>
 #include <utl/graph.hpp>
-#include <utl/hashmap.hpp>
-#include <utl/hashset.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 

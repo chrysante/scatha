@@ -39,15 +39,15 @@ INST_BEGIN(icallm) {
 INST_END(icallm)
 
 INST_BEGIN(ret) {
-    if UTL_UNLIKELY (currentFrame.bottomReg == regPtr) {
+    if (currentFrame.bottomReg == regPtr) {
         /// Meaning we are the root of the call tree aka. the main/start
         /// function, so we set the instruction pointer to the program
         /// break to terminate execution.
         TERMINATE_EXECUTION();
     }
     else {
-        iptr = utl::bit_cast<u8 const*>(regPtr[-1]);
-        currentFrame.stackPtr = utl::bit_cast<VirtualPointer>(regPtr[-3]);
+        iptr = std::bit_cast<u8 const*>(regPtr[-1]);
+        currentFrame.stackPtr = std::bit_cast<VirtualPointer>(regPtr[-3]);
         regPtr -= regPtr[-2];
     }
 }
@@ -228,7 +228,7 @@ INST_BEGIN(lincsp) {
     if (SVM_UNLIKELY(offset % 8 != 0)) {
         throwException<InvalidStackAllocationError>(offset);
     }
-    regPtr[destRegIdx] = utl::bit_cast<u64>(currentFrame.stackPtr);
+    regPtr[destRegIdx] = std::bit_cast<u64>(currentFrame.stackPtr);
     currentFrame.stackPtr += offset;
 }
 INST_END(lincsp)
@@ -237,7 +237,7 @@ INST_END(lincsp)
 INST_BEGIN(lea) {
     size_t destRegIdx = load<u8>(opPtr);
     VirtualPointer ptr = getPointer(regPtr, opPtr + 1);
-    regPtr[destRegIdx] = utl::bit_cast<u64>(ptr);
+    regPtr[destRegIdx] = std::bit_cast<u64>(ptr);
 }
 INST_END(lea)
 

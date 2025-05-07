@@ -6,7 +6,7 @@
 #include <scbinutil/OpCode.h>
 #include <scbinutil/ProgramView.h>
 #include <utl/bit.hpp>
-#include <utl/hashmap.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>

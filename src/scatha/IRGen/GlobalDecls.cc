@@ -73,7 +73,7 @@ static ir::Function* generateThunk(ir::Function* target,
                                                "vtable.offset");
     }
     utl::small_vector<ir::Value*> args = { objPtr, vtablePtr };
-    args.insert(args.end(), thunk->parameters() | drop(2) | TakeAddress);
+    args.insert_range(args.end(), thunk->parameters() | drop(2) | TakeAddress);
     auto* result =
         builder.add<ir::Call>(target->returnType(), target, args, "result");
     builder.add<ir::Return>(result);

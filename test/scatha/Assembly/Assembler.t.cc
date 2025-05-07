@@ -356,7 +356,7 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
         TerminateInst(),
     })); // clang-format on
     auto const [regs, stack] = assembleAndExecute(a);
-    CHECK(regs[0] == utl::bit_cast<u64>(std::sqrt(2.0)));
+    CHECK(regs[0] == std::bit_cast<u64>(std::sqrt(2.0)));
 }
 
 TEST_CASE("Conditional move", "[assembly][vm]") {

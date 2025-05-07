@@ -8,7 +8,7 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <termfmt/termfmt.h>
-#include <utl/hashmap.hpp>
+#include <utl/hashtable.hpp>
 
 #include "Common/Base.h"
 #include "Common/Ranges.h"

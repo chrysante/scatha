@@ -1,5 +1,6 @@
 #include "VirtualMachine.h"
 
+#include <bit>
 #include <cassert>
 
 #include <scbinutil/OpCode.h>
@@ -140,10 +141,10 @@ ALWAYS_INLINE static void performCall(VirtualMemory& memory, u8 const* i,
         }
     }();
     regPtr += regOffset;
-    regPtr[-3] = utl::bit_cast<u64>(stackPtr);
+    regPtr[-3] = std::bit_cast<u64>(stackPtr);
     regPtr[-2] = regOffset;
     auto* retAddr = iptr + CodeSize<C>;
-    regPtr[-1] = utl::bit_cast<u64>(retAddr);
+    regPtr[-1] = std::bit_cast<u64>(retAddr);
     iptr = binary + dest;
 }
 

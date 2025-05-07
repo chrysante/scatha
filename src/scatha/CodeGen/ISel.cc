@@ -1,5 +1,7 @@
 #include "CodeGen/ISel.h"
 
+#include <bit>
+
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <termfmt/termfmt.h>
@@ -745,7 +747,7 @@ static uint64_t makeWordMask(size_t leadingZeroBytes, size_t oneBytes) {
     for (size_t i = leadingZeroBytes; i < leadingZeroBytes + oneBytes; ++i) {
         mask[i] = 0xFF;
     }
-    return utl::bit_cast<uint64_t>(mask);
+    return std::bit_cast<uint64_t>(mask);
 }
 
 template <>
