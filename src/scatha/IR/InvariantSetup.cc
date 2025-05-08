@@ -18,21 +18,28 @@ static void makePred(BasicBlock* A, BasicBlock* B) {
     }
 };
 
-void ir::setupInvariants(Context& ctx, Function& function) {
-    for (auto& BB: function) {
-        /// Erase everything after the first terminator.
+static Metadata const* findReturnMetadata(BasicBlock const& BB) {
+    if (!BB.empty()) return BB.back().metadata();
+    for (auto* pred: BB.predecessors())
+        if (pred) return findReturnMetadata(*pred);
+    return nullptr;
+}
+
+void ir::setupInvariants(Context& ctx, Function& F) {
+    for (auto& BB: F) {
+        // Erase everything after the first terminator.
         if (auto itr = ranges::find_if(BB, isa<TerminatorInst>);
             itr != BB.end())
         {
             BB.erase(std::next(itr), BB.end());
         }
-
-        /// If we don't have a terminator insert a return.
+        // If we don't have a terminator insert a return.
         if (BB.empty() || !isa<TerminatorInst>(BB.back())) {
-            BB.pushBack(new Return(ctx, ctx.undef(BB.parent()->returnType())));
+            auto* ret = new Return(ctx, ctx.undef(BB.parent()->returnType()));
+            ret->setMetadata(clone(findReturnMetadata(BB)));
+            BB.pushBack(ret);
         }
-
-        /// Setup the predecessor relationship
+        // Setup the predecessor relationship
         auto* terminator = BB.terminator();
         // clang-format off
         SC_MATCH (*terminator) {

@@ -132,6 +132,7 @@ BasicBlock* FunctionBuilder::addNewBlock(std::string name) {
 
 Alloca* FunctionBuilder::makeLocalVariable(Type const* type, std::string name) {
     auto* addr = new Alloca(ctx, type, std::move(name));
+    if (auto md = getMetadata()) addr->setMetadata(std::move(md));
     allocas.push_back(UniquePtr<Alloca>(addr));
     return addr;
 }
@@ -145,6 +146,7 @@ Alloca* FunctionBuilder::makeLocalArray(Type const* elemType, size_t count,
 Alloca* FunctionBuilder::makeLocalArray(Type const* elemType, Value* count,
                                         std::string name) {
     auto* addr = new Alloca(ctx, count, elemType, std::move(name));
+    if (auto md = getMetadata()) addr->setMetadata(std::move(md));
     allocas.push_back(UniquePtr<Alloca>(addr));
     return addr;
 }

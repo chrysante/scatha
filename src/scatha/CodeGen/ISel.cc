@@ -35,7 +35,8 @@ struct Matcher<ir::Alloca>: MatcherBase {
         SC_ASSERT(addr, "Must be set because we handle all allocas in parent "
                         "function lowerToMIR()");
         auto* dest = resolve(inst);
-        emit(new mir::LEAInst(dest, computeAddress(inst, {}), {}));
+        emit(new mir::LEAInst(dest, computeAddress(inst, {}),
+                              clone(inst.metadata())));
         return true;
     }
 };

@@ -147,7 +147,8 @@ void LoweringContext::generateAllocas(ir::Function const& irFn,
     Resolver resolver(ctx, mirMod, mirFn, valueMap,
                       [&](mir::Instruction*) { SC_UNREACHABLE(); });
     mir::Register* baseptr = resolver.nextRegister();
-    auto* lispInst = new mir::LISPInst(baseptr, ctx.constant(numBytes, 2), {});
+    auto* lispInst = new mir::LISPInst(baseptr, ctx.constant(numBytes, 2),
+                                       clone(allocas.front()->metadata()));
     mirFn.entry()->pushBack(lispInst);
 
     /// Store the results

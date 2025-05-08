@@ -20,10 +20,13 @@
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/Logger.h"
+#include "Common/DebugMetadata.h"
 #include "Common/FFI.h"
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Function.h"
+#include "IR/CFG/Instructions.h"
 #include "IR/Context.h"
 #include "IR/ForEach.h"
-#include "IR/Fwd.h"
 #include "IR/IRParser.h"
 #include "IR/Module.h"
 #include "IR/PassManager.h"
@@ -42,8 +45,22 @@
 using namespace scatha;
 using namespace test;
 
-using Generator = utl::unique_function<
-    std::tuple<ir::Context, ir::Module, std::vector<ForeignLibraryDecl>>()>;
+namespace {
+
+struct GeneratorOptions {
+    bool generateDebugMetadata;
+};
+
+struct GeneratorResult {
+    ir::Context ctx;
+    ir::Module mod;
+    std::vector<ForeignLibraryDecl> libs;
+    bool haveDebugMetadata;
+};
+
+} // namespace
+
+using Generator = utl::unique_function<GeneratorResult(GeneratorOptions)>;
 
 static void validateEmpty(std::span<SourceFile const> sources,
                           IssueHandler const& issues) {
@@ -65,22 +82,28 @@ static Generator makeScathaGenerator(std::vector<std::string> sourceTexts) {
     auto analysisResult = sema::analyze(*ast, sym, issues);
     validateEmpty(sourceFiles, issues);
     return [ast = std::move(ast), sym = std::move(sym),
-            analysisResult = std::move(analysisResult)] {
+            analysisResult =
+                std::move(analysisResult)](GeneratorOptions const& options) {
         ir::Context ctx;
         ir::Module mod;
-        irgen::generateIR(ctx, mod, *ast, sym, analysisResult, {});
-        ir::forEach(ctx, mod, opt::unifyReturns, {});
-        return std::tuple{ std::move(ctx), std::move(mod),
-                           sym.foreignLibraries() };
+        irgen::generateIR(ctx, mod, *ast, sym, analysisResult,
+                          { .generateDebugSymbols =
+                                options.generateDebugMetadata });
+        return GeneratorResult{ .ctx = std::move(ctx),
+                                .mod = std::move(mod),
+                                .libs = sym.foreignLibraries(),
+                                .haveDebugMetadata = true };
     };
 }
 
 static Generator makeIRGenerator(std::string_view text) {
-    return [=] {
+    return [=](GeneratorOptions const&) {
         auto result = ir::parse(text).value();
         ir::forEach(result.first, result.second, opt::unifyReturns, {});
-        return std::tuple{ std::move(result).first, std::move(result).second,
-                           std::vector<ForeignLibraryDecl>{} };
+        return GeneratorResult{ .ctx = std::move(result).first,
+                                .mod = std::move(result).second,
+                                .libs = std::vector<ForeignLibraryDecl>{},
+                                .haveDebugMetadata = false };
     };
 }
 
@@ -105,6 +128,23 @@ static uint64_t run(ir::Module const& mod, int optLevel, std::ostream* str,
                     std::span<ForeignLibraryDecl const> foreignLibs) {
     auto [prog, sym] = codegenAndAssemble(mod, optLevel, str, foreignLibs);
     return runProgram(prog, findMain(sym).value());
+}
+
+static void checkDebugInfo(ir::Module const& mod) {
+    auto* sourceFileList = dynamic_cast<SourceFileList const*>(mod.metadata());
+    CHECK(sourceFileList);
+    for (auto& F: mod) {
+        for (auto& BB: F) {
+            for (auto& inst: BB) {
+                INFO(utl::streammanip(
+                    [&](std::ostream& str) { ir::print(F, str); }));
+                INFO(ir::format(inst));
+                auto* metadata = dynamic_cast<InstructionDebugMetadata const*>(
+                    inst.metadata());
+                CHECK(metadata);
+            }
+        }
+    }
 }
 
 using ParserType =
@@ -133,16 +173,22 @@ struct Impl {
     void runTest(Generator const& generator, utl::function_view<void()> begin,
                  utl::function_view<void(u64)> end) const {
         /// No optimization
-        for (int optLevel: { 0, 1 }) {
-            auto [ctx, mod, libs] = generator();
-            runChecked("Unoptimized", mod, libs, optLevel, begin, end);
+        for (int codegenOptLevel: { 0, 1 }) {
+            auto [ctx, mod, libs, haveDebugMetadata] =
+                generator({ .generateDebugMetadata = true });
+            static bool const TestDebugMetadata =
+                std::getenv("SC_TEST_DEBUG_METADATA") != nullptr;
+            if (TestDebugMetadata && codegenOptLevel == 0 && haveDebugMetadata)
+                checkDebugInfo(mod);
+            runChecked("Unoptimized", mod, libs, codegenOptLevel, begin, end);
         }
 
         /// Default optimizations
-        for (int optLevel: { 0, 1 }) {
-            auto [ctx, mod, libs] = generator();
+        for (int codegenOptLevel: { 0, 1 }) {
+            auto [ctx, mod, libs, _] = generator({});
             opt::optimize(ctx, mod, {});
-            runChecked("Default pipeline", mod, libs, optLevel, begin, end);
+            runChecked("Default pipeline", mod, libs, codegenOptLevel, begin,
+                       end);
         }
 
         if (getOptions().TestPasses) {
@@ -218,7 +264,7 @@ struct Impl {
                       utl::function_view<void()> begin,
                       utl::function_view<void(u64)> end) const {
         for (int optLevel: { 0, 1 }) {
-            auto [ctx, mod, libs] = generator();
+            auto [ctx, mod, libs, _] = generator({});
             prePipeline(ctx, mod);
             auto message = utl::strcat("Pass test for \"", pipeline,
                                        "\" with pre pipeline \"", prePipeline,
@@ -241,7 +287,7 @@ struct Impl {
             if (pass.name() == "optimize") {
                 continue;
             }
-            auto [ctx, mod, libs] = generator();
+            auto [ctx, mod, libs, _] = generator({});
             prePipeline.execute(ctx, mod);
             auto message = utl::strcat("Idempotency check for \"", pass.name(),
                                        "\" with pre pipeline \"", prePipeline,
@@ -288,7 +334,7 @@ void test::runIRPrintsTest(std::string_view expected, std::string source) {
 
 bool test::compiles(std::string text) {
     try {
-        auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
+        auto [ctx, mod, libs, _] = makeScathaGenerator({ std::move(text) })({});
         opt::optimize(ctx, mod, {});
         return true;
     }
@@ -299,7 +345,7 @@ bool test::compiles(std::string text) {
 
 bool test::IRCompiles(std::string_view text) {
     try {
-        auto [ctx, mod, libs] = makeIRGenerator(text)();
+        auto [ctx, mod, libs, _] = makeIRGenerator(text)({});
         opt::optimize(ctx, mod, {});
         return true;
     }
@@ -309,7 +355,7 @@ bool test::IRCompiles(std::string_view text) {
 }
 
 void test::compile(std::string text) {
-    auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
+    auto [ctx, mod, libs, _] = makeScathaGenerator({ std::move(text) })({});
     codegenAndAssemble(mod, /* optLevel: */ 1);
 }
 
@@ -338,12 +384,12 @@ std::optional<size_t> test::findMain(
 }
 
 uint64_t test::compileAndRun(std::string text) {
-    auto [ctx, mod, libs] = makeScathaGenerator({ std::move(text) })();
+    auto [ctx, mod, libs, _] = makeScathaGenerator({ std::move(text) })({});
     return ::run(mod, 1, nullptr, libs);
 }
 
 uint64_t test::compileAndRunIR(std::string text) {
-    auto [ctx, mod, libs] = makeIRGenerator({ std::move(text) })();
+    auto [ctx, mod, libs, _] = makeIRGenerator({ std::move(text) })({});
     return ::run(mod, 1, nullptr, libs);
 }
 

@@ -397,12 +397,24 @@ void FuncGenContext::generateSynthFunctionAs(sema::SMFKind kind) {
 
 /// MARK: - Statements
 
+static SourceLocation getStmtSourceLoc(ast::Statement const& stmt) {
+    // clang-format off
+    return SC_MATCH (stmt) {
+        [](ast::Statement const& stmt) { return stmt.sourceLocation(); },
+        [](ast::FunctionDefinition const& func) {
+            if (auto stmts = func.body()->statements(); !stmts.empty())
+                return stmts.front()->sourceLocation();
+            return func.sourceLocation();
+        },
+    }; // clang-format on
+}
+
 void FuncGenContext::generate(ast::Statement const& stmt) {
     /// We don't emit dead code
     if (!stmt.reachable()) {
         return;
     }
-    pushSourceLoc(stmt.sourceLocation());
+    pushSourceLoc(getStmtSourceLoc(stmt));
     visit(stmt,
           [this](auto const& stmt) SC_NODEBUG { return generateImpl(stmt); });
     popSourceLoc();
