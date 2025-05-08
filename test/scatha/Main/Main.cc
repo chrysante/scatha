@@ -7,6 +7,7 @@
 #include <catch2/catch_test_case_info.hpp>
 #include <catch2/internal/catch_istream.hpp>
 #include <catch2/internal/catch_test_case_registry_impl.hpp>
+#include <catch2/reporters/catch_reporter_console.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <catch2/reporters/catch_reporter_streaming_base.hpp>
 #include <range/v3/numeric.hpp>
@@ -53,12 +54,12 @@ struct ProgRepBase {
     ProgRepBase(std::ostream& str): str(str) {}
 
     virtual ~ProgRepBase() = default;
-    virtual void beginTest([[maybe_unused]] Catch::TestCaseInfo const& testInfo,
-                           [[maybe_unused]] double progress) {}
-    virtual void endTest([[maybe_unused]] Catch::TestCaseInfo const& testInfo,
-                         [[maybe_unused]] double progress) {}
-    virtual void endRun([[maybe_unused]] Catch::TestRunStats const& stats) {}
-    virtual void assertionFailed() {}
+    virtual void beginTest(Catch::TestCaseInfo const& testInfo,
+                           double progress) = 0;
+    virtual void endTest(Catch::TestCaseInfo const& testInfo,
+                         double progress) = 0;
+    virtual void endRun(Catch::TestRunStats const& stats) = 0;
+    virtual void assertionFailed(Catch::AssertionStats const& stats) = 0;
 
     std::ostream& str;
 };
@@ -73,20 +74,26 @@ struct ProgRepSimple: ProgRepBase {
         str << std::flush;
     }
 
+    void beginTest(Catch::TestCaseInfo const&, double) override {}
+
     void endTest(Catch::TestCaseInfo const&, double progress) override {
         int newNumDots = (int)(progress * 79);
         printDots(std::max(0, newNumDots - numDots));
         numDots = newNumDots;
     }
 
-    void assertionFailed() override { numDots = 0; }
-
     void endRun(Catch::TestRunStats const&) override { str << std::endl; }
+
+    void assertionFailed(Catch::AssertionStats const&) override { numDots = 0; }
 
     int numDots = 0;
 };
 
 struct ProgRepConsole: ProgRepBase {
+    Catch::TestCaseInfo const* m_currentTestInfo = nullptr;
+    int numFailedAssertionsInCurrentTest = 0;
+    double m_progress = 0;
+
     using ProgRepBase::ProgRepBase;
 
     ProgRepConsole(std::ostream& str): ProgRepBase(str) {
@@ -97,6 +104,14 @@ struct ProgRepConsole: ProgRepBase {
                    double progress) override {
         clearLine();
         printProgressBar(progress, getWidth(), testInfo.name);
+        m_currentTestInfo = &testInfo;
+        m_progress = progress;
+        numFailedAssertionsInCurrentTest = 0;
+    }
+
+    void endTest(Catch::TestCaseInfo const&, double progress) override {
+        m_currentTestInfo = nullptr;
+        m_progress = progress;
     }
 
     void endRun(Catch::TestRunStats const&) override {
@@ -105,7 +120,39 @@ struct ProgRepConsole: ProgRepBase {
         str << "\n";
     }
 
-    void assertionFailed() override { clearLine(); }
+    void assertionFailed(Catch::AssertionStats const& stats) override {
+        clearLine();
+        assert(m_currentTestInfo);
+        if (numFailedAssertionsInCurrentTest == 0)
+            str << tfmt::format(Red | Bold, "Failure in test case: ")
+                << tfmt::format(Bold, m_currentTestInfo->name) << "\n";
+        else
+            str << "\n";
+        ++numFailedAssertionsInCurrentTest;
+        auto& result = stats.assertionResult;
+        auto expr = result.getExpression();
+        auto expandedExpr = result.getExpandedExpression();
+        str << "    " << result.getTestMacroName() << "("
+            << tfmt::format(Bold, expr) << ")\n";
+        if (expr != expandedExpr) {
+            str << "    "
+                << tfmt::format(BrightGrey | Italic, "with expansion:\n");
+            str << "    " << result.getTestMacroName() << "("
+                << tfmt::format(Bold, expandedExpr) << ")\n";
+        }
+        str << "    " << tfmt::format(BrightGrey | Italic, "with message:")
+            << "\n";
+        for (auto& message: stats.infoMessages) {
+            str << "        " << message.message << "\n";
+        }
+        tfmt::formatScope(BrightGrey | Italic, str, [&] {
+            auto sourceInfo = result.getSourceInfo();
+            str << "    In file "
+                << tfmt::format(Reset, "\"", sourceInfo.file, "\"") << "\n";
+            str << "    On line " << sourceInfo.line << "\n";
+        });
+        printProgressBar(m_progress, getWidth(), m_currentTestInfo->name);
+    }
 
     void printProgressBar(double progress, size_t width,
                           std::string_view name) {
@@ -132,8 +179,8 @@ struct ProgRepConsole: ProgRepBase {
     void clearLine() const { str << "\33[1A\33[2K\r"; }
 
     size_t getWidth() const {
-        return std::clamp(tfmt::getWidth(std::cout).value_or(80), size_t{ 20 },
-                          size_t{ 79 });
+        size_t width = tfmt::getWidth(std::cout).value_or(80);
+        return std::max(size_t{ 20 }, width);
     }
 };
 
@@ -175,7 +222,7 @@ struct ProgressReporter: Catch::StreamingReporterBase {
 
     void assertionEnded(Catch::AssertionStats const& stats) override {
         if (!stats.assertionResult.isOk()) {
-            impl->assertionFailed();
+            impl->assertionFailed(stats);
         }
     }
 
